@@ -74,6 +74,7 @@ pub enum ClassifyDecision {
 /// Mode klasifikasi -- enum tertutup persis 3 mode valid `mirtCAT`
 /// (`classify_type`: `'none'`/`'CI'`/`'SPRT'`).
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ClassifyType {
     /// Tidak ada klasifikasi -- stopping presisi murni lewat `min_SEM`.
     #[default]
@@ -94,6 +95,7 @@ pub enum ClassifyType {
 
 /// Konfigurasi stopping rule.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StoppingConfig {
     /// Jumlah item minimum sebelum kriteria presisi (`min_SEM`/
     /// `delta_thetas`/klasifikasi) mulai dievaluasi. Default `1` (padanan
@@ -144,6 +146,7 @@ impl Default for StoppingConfig {
 
 /// Hasil evaluasi stopping rule satu langkah.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StopDecision {
     pub stop_now: bool,
     /// Hanya relevan bila `classify == ClassifyType::None`; `vec![false;
@@ -171,6 +174,7 @@ pub struct StopDecision {
 /// `StoppingConfig::debug == true`; tidak memengaruhi [`StopDecision`] yang
 /// dikembalikan (Prinsip Desain #7).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StoppingRuleDebug {
     pub se_values: SEVector,
     /// `|Δtheta|` mentah per-dimensi -- kosong bila belum ada

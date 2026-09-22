@@ -7,8 +7,9 @@
 //! siklus adaptif di atasnya (item selection, ability estimation, stopping
 //! rule, exposure control, content balancing — fase-fase berikutnya).
 //!
-//! Status implementasi saat ini: **Fase 7 — hasil bersih akhir untuk
-//! theta**. Lihat `PLAN.md` di root crate untuk peta fase lengkap.
+//! Status implementasi saat ini: **Fase 8 — integrasi end-to-end
+//! (`McatSession`) & contoh Axum**. Lihat `PLAN.md` di root crate untuk peta
+//! fase lengkap.
 
 pub mod ability_estimation;
 pub mod bank;
@@ -19,6 +20,7 @@ pub mod initial_theta;
 pub mod irt;
 pub mod item_selection;
 pub mod result;
+pub mod session;
 pub mod stopping_rule;
 pub mod theta;
 
@@ -37,6 +39,7 @@ pub use item_selection::{
     SelectionConfig,
 };
 pub use result::McatResult;
+pub use session::{McatSession, SessionConfig, StepDebug};
 pub use stopping_rule::{
     evaluate as evaluate_stopping_rule, ClassifyDecision, ClassifyType, CustomStop, StopDecision,
     StoppingConfig, StoppingRuleDebug,

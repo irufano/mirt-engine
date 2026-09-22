@@ -59,6 +59,7 @@ pub use eap_sum::ScoreEstimate;
 /// Metode estimasi kemampuan — enum tertutup persis method valid `mirtCAT`
 /// (`fscores(method=...)`, dibatasi ke yang dipakai `Design$Update.thetas`).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Method {
     /// EAP (Expected A Posteriori). `qmc=true` memakai titik Quasi-Monte
     /// Carlo (disarankan untuk `nfact > 4`, lih. peringatan di [`estimate`]);
@@ -80,6 +81,7 @@ pub enum Method {
 
 /// Konfigurasi estimasi kemampuan.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EstimationConfig {
     pub method: Method,
     /// Jumlah titik kuadratur (grid: per-dimensi; QMC: total). `None` ->
@@ -99,6 +101,7 @@ pub struct EstimationConfig {
 /// untuk method yang tidak relevan (mis. `iterations` untuk `Eap`/`Fixed`,
 /// `n_quadrature_points` untuk `Ml`/`Map`/`Wle`/`Fixed`).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AbilityEstimationDebug {
     pub method: Method,
     pub n_quadrature_points: Option<usize>,

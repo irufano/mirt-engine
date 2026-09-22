@@ -24,6 +24,7 @@ use crate::theta::{SEVector, ThetaVector};
 /// Sumber titik awal `theta`. Default [`ThetaStart::Zero`] — persis
 /// `Person$initialize()` (`thetas <<- matrix(numeric(nfact), nrow = 1L)`).
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ThetaStart {
     /// Vektor nol sepanjang `nfact` (default).
     #[default]
@@ -39,6 +40,7 @@ pub enum ThetaStart {
 
 /// Konfigurasi inisialisasi theta awal.
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitialThetaConfig {
     pub start: ThetaStart,
     /// Bobot per-dimensi, dipakai belakangan oleh `Trule`/`TPrule`,
@@ -54,6 +56,7 @@ pub struct InitialThetaConfig {
 /// `InitialThetaConfig::debug == true`; tidak memengaruhi nilai utama yang
 /// dikembalikan (prinsip desain #7).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitialThetaDebug {
     /// Jalur `ThetaStart` yang dipakai.
     pub source: ThetaStart,

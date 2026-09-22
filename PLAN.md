@@ -286,9 +286,9 @@ sebelum fase berikutnya dimulai.
 | 3 | Algoritma Estimasi Kemampuan | ✅ Selesai |
 | 4 | Stopping Rule | ✅ Selesai |
 | 5 | Exposure Control | ✅ Selesai |
-| 6 | Content Balancing | ⬜ Belum Dimulai |
-| 7 | Hasil Bersih Akhir untuk Theta | ⬜ Belum Dimulai |
-| 8 | Integrasi End-to-End & Contoh Axum | ⬜ Belum Dimulai |
+| 6 | Content Balancing | ✅ Selesai |
+| 7 | Hasil Bersih Akhir untuk Theta | ✅ Selesai |
+| 8 | Integrasi End-to-End & Contoh Axum | ✅ Selesai |
 | 9 | Hardening, Validasi Silang & Rilis | ⬜ Belum Dimulai |
 
 > Update tabel ini setiap kali status sebuah fase berubah.
@@ -1368,12 +1368,85 @@ konsisten dengan bentuk output `mirtCAT` untuk `nfact > 1`.
 
 ## Fase 8 — Integrasi End-to-End (Session Orchestrator) & Contoh Axum
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
 
 > Fase ini di luar 7 spesifikasi eksplisit, tapi diperlukan untuk memenuhi
 > tujuan yang dinyatakan pengguna: engine harus **bisa dipakai** di web API
 > (contoh Axum) maupun project Rust lain. Menyatukan Fase 0–7 menjadi satu
 > alur `McatSession` yang mudah dipanggil per-request/per-langkah.
+
+> **Update (2026-09-22)**: Implementasi selesai dengan sejumlah deviasi
+> dari sketsa desain awal di bawah, ditemukan begitu tujuan "stateless-
+> friendly" fase ini ditelusuri sampai konsekuensi teknisnya (pola sama
+> seperti Fase 2–5, yang masing-masing punya catatan serupa):
+> 1. **`McatSession` TIDAK memegang `&ItemBank`/`&GroupParams`.** `ItemBank`
+>    berisi `Box<dyn ItemResponseModel>` (trait object) -- field
+>    referensi/owned ke situ membuat `McatSession` mustahil `Serialize`
+>    (dan lifetime-bound), langsung bertentangan dengan tujuan "sesi bisa
+>    di-serialize/deserialize antar request HTTP" yang dinyatakan fase ini
+>    sendiri. Solusi: `bank`/`group` jadi PARAMETER `next_item()`/
+>    `submit_response()`, bukan field -- mengikuti pola yang SUDAH dipakai
+>    tiap fase sebelumnya (`select_next_item`, `estimate`, `evaluate`,
+>    `select_with_exposure`, `narrow_candidates`).
+> 2. **`rng: &mut impl Rng` juga parameter `next_item()`**, bukan field
+>    `McatSession` -- pola sama seperti Fase 2/5 (reproducibility lewat
+>    seed eksternal), sekaligus menghindari dependency serde untuk `StdRng`
+>    yang tidak perlu.
+> 3. **`finalize(&self) -> McatResult`, bukan `finalize(self)`** — konsumsi
+>    `self` tidak perlu (`McatResult::from_person` cuma butuh referensi);
+>    borrow lebih berguna untuk `GET /session/:id/result` yang bisa
+>    dipanggil berkali-kali, termasuk sebelum sesi selesai.
+> 4. **`InitialThetaDebug` di field terpisah** (`McatSession::initial_theta_debug()`),
+>    bukan varian `StepDebug` -- sketsa awal di bawah sendiri sudah tidak
+>    menyertakan varian itu di enum `StepDebug` (dihasilkan sekali di
+>    `new()`, bukan per langkah).
+> 5. **`ItemResponseModel` (Fase 0, `src/irt/model.rs`) dapat supertrait
+>    `Send + Sync`** -- ditemukan lewat error compile nyata saat memasang
+>    `ItemBank` sebagai state `axum::Router` (Axum mensyaratkan state
+>    `Send + Sync + 'static`; tanpa bound ini `Box<dyn ItemResponseModel>`
+>    di dalam `ItemBank` membuat seluruh `AppState` gagal `Send`/`Sync`).
+>    Tidak membebani implementor manapun (`Dichotomous`/`GradedResponse`
+>    cuma berisi `Vec<f64>`/`f64` polos, sudah otomatis `Send + Sync`).
+> 6. **`InfoMatrix` (`src/theta.rs`) dapat `impl Serialize/Deserialize`
+>    manual** (pola sama seperti `ThetaVector`/`SEVector`, `Vec<Vec<f64>>`
+>    row-major) supaya `ItemSelectionDebug` (field `Option<InfoMatrix>`)
+>    ikut serde tanpa pengecualian -- `McatSession` termasuk `debug_log`
+>    bisa diserialisasi utuh.
+> 7. **`serde_json` dev-dependency butuh feature `float_roundtrip`** --
+>    ditemukan lewat test roundtrip `McatSession` yang gagal (`assert_eq!`
+>    eksak) karena parser f64 DEFAULT serde_json (versi 1.0.151) ternyata
+>    BISA meleset 1 ULP untuk bilangan tertentu (dikonfirmasi lewat
+>    reproduksi manual: `to_string` lalu `from_str` TIDAK selalu
+>    menghasilkan bit pattern f64 identik) -- fatal untuk test roundtrip
+>    serde eksak (Fase 7 `McatResult` & Fase 8 `McatSession`).
+>
+> **Temuan pipeline dari pembacaan langsung source R** (bukan hanya sketsa
+> `PLAN.md`): `mirtCAT/R/run_pattern.R::run_local()$fn` (loop per-peserta)
+> dan `mirtCAT/R/findNextCATItem.R::findNextCATItem()` (urutan kerja nyata
+> pemilihan item) dibaca dari checkout source lokal (`../mirtCAT/R/`).
+> Item **pertama** sesi selalu `start_item` PAKSA, tanpa lewat kriteria/
+> content balancing/exposure control sama sekali. Di dalam
+> `findNextCATItem()`: skor SELURUH kandidat dihitung dulu, BARU
+> disempitkan content balancing, BARU exposure control jalan di atas hasil
+> sempitan -- modul `content_balancing` (Fase 6) sudah membuktikan lewat
+> test `narrowed_pool_composes_directly_with_rank_candidates` bahwa
+> menyempitkan SEBELUM ranking (dipakai di `McatSession::next_item`) =
+> menyempitkan SESUDAH ranking (urutan R) secara numerik identik.
+> `Criterion::Seq` melewati content balancing & exposure control SAMA
+> SEKALI; `Criterion::Random` masih lewat content balancing (bila aktif)
+> tapi TIDAK exposure control. Detail lengkap & rujukan baris kode R ada di
+> doc comment modul `src/session.rs`.
+>
+> **Fixture R untuk Fase 8 sengaja dibuat deterministik penuh** (exposure
+> Sympson-Hetter dengan SELURUH nilai `1.0` -- selalu diterima di percobaan
+> pertama, jadi TIDAK ADA titik yang hasilnya bergantung pada nilai RNG
+> konkret) -- `items_answered` dibandingkan EKSAK item demi item terhadap
+> R, lebih kuat daripada perbandingan statistik/keanggotaan yang biasanya
+> perlu dipakai untuk skenario dengan RNG (lih. `PLAN.md` §Fase 5). Karena
+> fixture ini menjalankan optimizer MAP Rust SUNGGUHAN tiap langkah (bukan
+> replay nilai theta R seperti fixture Fase 7), toleransi numerik yang
+> dipakai `1e-4` (bukan `1e-6`) -- konsisten dengan `ability_estimation.json`
+> (`eap_map_ml`, Fase 3), bukan sembarang dilonggarkan.
 
 ### Tujuan
 - Menyediakan `McatSession` — orkestrator siklus adaptif lengkap: mulai sesi
@@ -1390,46 +1463,84 @@ konsisten dengan bentuk output `mirtCAT` untuk `nfact > 1`.
 - `mirtCAT/R/updateDesign.R` (transisi state antar-item)
 
 ### Desain Modul Rust
-- `session::McatSession` — memegang `PersonState`, `Design`-setara
-  (gabungan config Fase 1–6), referensi `ItemBank`+`GroupParams`.
-- `session::McatSession::new(config, bank, group) -> Self` — `config.debug: bool` (default `false`, prinsip desain #7) diteruskan ke seluruh sub-config Fase 1–6 sekaligus (satu saklar, bukan diatur per-fase secara terpisah).
-- `session::McatSession::next_item(&mut self) -> Result<ItemIndex, MirtCatError>`
-- `session::McatSession::submit_response(&mut self, item: ItemIndex, response: i32) -> Result<StopDecision, MirtCatError>` — internal: update info matrix (bila perlu) → estimasi ulang theta (Fase 3) → evaluasi stop (Fase 4).
-- `session::McatSession::finalize(self) -> McatResult` (Fase 7).
-- `session::StepDebug` — enum agregasi (varian `Selection(ItemSelectionDebug)`, `Estimation(AbilityEstimationDebug)`, `Stopping(StoppingRuleDebug)`, `Exposure(ExposureControlDebug)`, `ContentBalancing(ContentBalancingDebug)`) merekam tiap `Option<XxxDebug>` dari Fase 1–6 yang `Some` di satu langkah `next_item()`/`submit_response()`.
-- `session::McatSession::debug_log(&self) -> &[StepDebug]` — accessor append-only, kosong bila `config.debug == false`; dipakai endpoint "debug" contoh Axum (`GET /session/:id/debug`).
-- `McatSession` + field pendukungnya `Serialize`/`Deserialize` di balik feature `serde` (agar bisa disimpan di cookie/DB/redis antar-request HTTP).
+
+> Diperbarui dari sketsa awal sesuai implementasi final -- lih. "Update"
+> di atas untuk alasan tiap deviasi.
+
+- `session::SessionConfig` — gabungan `InitialThetaConfig`/`SelectionConfig`/
+  `EstimationConfig`/`StoppingConfig` (Fase 1–4) + `Option<ExposureControlConfig>`
+  (Fase 5) + `Option<ContentBalancingConfig>` (Fase 6) + `start_item: ItemIndex`
+  + `debug: bool`.
+- `session::StepDebug` — enum agregasi (varian `Selection(ItemSelectionDebug)`,
+  `Estimation(AbilityEstimationDebug)`, `Stopping(StoppingRuleDebug)`,
+  `Exposure(ExposureControlDebug)`, `ContentBalancing(ContentBalancingDebug)`)
+  merekam tiap `Option<XxxDebug>` dari Fase 1–6 yang `Some` di satu langkah
+  `next_item()`/`submit_response()`.
+- `session::McatSession` (struct privat: `person: PersonState`,
+  `config: SessionConfig`, `valid_items: Vec<bool>`, `pending_item: Option<ItemIndex>`,
+  `last_stop_decision: StopDecision`, `initial_theta_debug: Option<InitialThetaDebug>`,
+  `debug_log: Vec<StepDebug>`) — **TIDAK** memegang `&ItemBank`/`&GroupParams`
+  (lih. "Update" #1).
+- `session::McatSession::new(config: SessionConfig, bank: &ItemBank, group: &GroupParams, person_index: usize) -> Result<Self, MirtCatError>` —
+  `config.debug` diteruskan ke seluruh sub-config Fase 1–6 sekaligus (satu
+  saklar), validasi content balancing vs kriteria (reuse
+  `ContentBalancingConfig::validate_with_criterion`) & `start_item` dalam
+  jangkauan `bank`, inisialisasi `theta`/SE lewat `initial_theta::initialize`
+  (reuse Fase 1).
+- `session::McatSession::next_item(&mut self, bank: &ItemBank, group: &GroupParams, rng: &mut impl Rng) -> Result<ItemIndex, MirtCatError>` —
+  `bank`/`group`/`rng` parameter, bukan field (lih. "Update" #1-2). Urutan
+  pipeline: `start_item` paksa (langkah pertama) → kandidat (belum
+  dijawab & valid) → content balancing (bila aktif, dilewati `Seq`) →
+  kriteria (+ exposure control bila aktif, hanya kriteria berskor) atau
+  argmax langsung.
+- `session::McatSession::submit_response(&mut self, item: ItemIndex, response: usize, bank: &ItemBank, group: &GroupParams, custom_stop: Option<&dyn CustomStop>) -> Result<StopDecision, MirtCatError>` —
+  menolak `item != pending_item` (cegah state korup); internal: rekam
+  respons → estimasi ulang theta (Fase 3, reuse) → evaluasi stop (Fase 4,
+  reuse, `in_unfinished_constraint_block = false` -- constraint di luar
+  scope).
+- `session::McatSession::finalize(&self) -> McatResult` (Fase 7, reuse
+  `McatResult::from_person`) — `&self`, bukan `self` (lih. "Update" #3).
+- `session::McatSession::debug_log(&self) -> &[StepDebug]`,
+  `initial_theta_debug(&self) -> Option<&InitialThetaDebug>` (lih. "Update" #4),
+  `pending_item()`, `last_stop_decision()`, `is_finished()`, `person()`,
+  `config()` — accessor kecil.
+- `McatSession` + `SessionConfig` + `StepDebug` + seluruh config/debug
+  Fase 1–6 `Serialize`/`Deserialize` di balik feature `serde` (agar bisa
+  disimpan di cookie/DB/redis antar-request HTTP) — termasuk `InfoMatrix`
+  (`src/theta.rs`, `impl` manual baru) dan supertrait `Send + Sync` di
+  `ItemResponseModel` (`src/irt/model.rs`, lih. "Update" #5-6).
 
 ### Checklist Implementasi
-- [ ] `session::McatSession` (struct) menggabungkan config Fase 1–6
-- [ ] `McatSession::new()`, `next_item()`, `submit_response()`, `finalize()`
-- [ ] Urutan pipeline internal benar: kriteria (Fase 2) → content balancing (Fase 6) → exposure control (Fase 5) → (constraints, bila ada di lingkup masa depan) → item final
-- [ ] `McatSession` bisa di-serialize/deserialize (feature `serde`) untuk state antar-request HTTP
-- [ ] `session.debug: bool` (default `false`) diteruskan otomatis ke seluruh sub-config Fase 1–6 saat `McatSession::new()`
-- [ ] `StepDebug` (enum agregasi) & `McatSession::debug_log()` — mengumpulkan `Option<XxxDebug>` tiap fase per langkah
-- [ ] `examples/08_axum_api/` — mini server Axum: endpoint `POST /session`, `POST /session/:id/answer`, `GET /session/:id/result`, `GET /session/:id/debug` (kosong/404 bila `debug=false`; in-memory store untuk contoh; didokumentasikan bahwa produksi sebaiknya pakai store eksternal)
+- [x] `session::McatSession` (struct) menggabungkan config Fase 1–6 — via `SessionConfig`
+- [x] `McatSession::new()`, `next_item()`, `submit_response()`, `finalize()`
+- [x] Urutan pipeline internal benar: kriteria (Fase 2) → content balancing (Fase 6) → exposure control (Fase 5) → (constraints, bila ada di lingkup masa depan) → item final — diuji `session::tests::selected_item_always_stays_within_content_balancing_narrowed_pool` + `tests/integration_session.rs` (item demi item vs R)
+- [x] `McatSession` bisa di-serialize/deserialize (feature `serde`) untuk state antar-request HTTP
+- [x] `session.debug: bool` (default `false`) diteruskan otomatis ke seluruh sub-config Fase 1–6 saat `McatSession::new()`
+- [x] `StepDebug` (enum agregasi) & `McatSession::debug_log()` — mengumpulkan `Option<XxxDebug>` tiap fase per langkah
+- [x] `examples/08_axum_api/` — mini server Axum: endpoint `POST /session`, `POST /session/:id/answer`, `GET /session/:id/result`, `GET /session/:id/debug` (404 bila `debug=false`; in-memory store untuk contoh, session disimpan sebagai string JSON hasil serialisasi -- simulasi konkret pola Redis/DB; didokumentasikan bahwa produksi sebaiknya pakai store eksternal)
 
 ### Checklist Unit Test
-- [ ] Siklus penuh sintetis (item bank kecil, 3 dimensi) dari `new()` sampai `finalize()` menghasilkan `McatResult` yang konsisten
-- [ ] `submit_response()` menolak `item` yang bukan hasil `next_item()` terakhir (mencegah state korup)
-- [ ] Serialize → deserialize `McatSession` di tengah sesi menghasilkan sesi yang bisa dilanjutkan identik dengan yang tidak di-serialize
-- [ ] `debug=false` di level sesi → `debug_log()` selalu kosong & seluruh sub-config Fase 1–6 otomatis ikut `debug=false`; `debug=true` → `debug_log()` terisi tiap langkah tanpa mengubah `ItemIndex`/`StopDecision`/`McatResult` yang dikembalikan
+- [x] Siklus penuh sintetis (item bank kecil, 2 dimensi -- lih. catatan di bawah) dari `new()` sampai `finalize()` menghasilkan `McatResult` yang konsisten — `full_cycle_from_new_to_finalize_yields_consistent_result` (nfact 2, bukan 3 seperti sketsa awal -- substansi test sama, jumlah dimensi tidak material)
+- [x] `submit_response()` menolak `item` yang bukan hasil `next_item()` terakhir (mencegah state korup) — `submit_response_rejects_item_that_is_not_the_pending_item`, `submit_response_without_prior_next_item_errors`
+- [x] Serialize → deserialize `McatSession` di tengah sesi menghasilkan sesi yang bisa dilanjutkan identik dengan yang tidak di-serialize — `serialize_then_deserialize_mid_session_continues_identically`
+- [x] `debug=false` di level sesi → `debug_log()` selalu kosong & seluruh sub-config Fase 1–6 otomatis ikut `debug=false`; `debug=true` → `debug_log()` terisi tiap langkah tanpa mengubah `ItemIndex`/`StopDecision`/`McatResult` yang dikembalikan — `debug_false_keeps_log_empty_and_debug_true_does_not_change_outcome` (+ `first_next_item_is_always_start_item_regardless_of_criterion`, `next_item_after_session_finished_errors`, `seq_plus_content_balancing_is_rejected_at_construction`, `start_item_out_of_range_errors_at_construction`, `classify_type_ci_config_is_accepted_and_theta0_is_zero`, `initial_theta_debug_serializes_when_present`)
 
 ### Checklist Integration Test
-- [ ] Fixture R: seluruh sesi (item selection + ability estimation + stopping + exposure + content balancing digabung) dari `mirtCAT()` end-to-end pada 1 skenario representatif → bandingkan hasil akhir Rust `McatSession` vs R
-- [ ] Test HTTP end-to-end pada contoh Axum (`tests/integration_axum.rs` di dalam folder example atau test terpisah): request penuh dari mulai sesi sampai hasil akhir via HTTP, memverifikasi response JSON sesuai `McatResult`
+- [x] Fixture R: seluruh sesi (item selection + ability estimation + stopping + exposure + content balancing digabung) dari `mirtCAT()` end-to-end pada 1 skenario representatif → bandingkan hasil akhir Rust `McatSession` vs R — `tests/fixtures/generate_r_fixtures_session.R` (skenario deterministik penuh, lih. "Update" di atas) + `tests/integration_session.rs::mcat_session_full_pipeline_matches_r_mirtcat_item_sequence_and_final_result` (urutan `items_answered` EKSAK + `thetas`/`se_thetas` akhir, toleransi `1e-4`)
+- [x] Test HTTP end-to-end pada contoh Axum (`tests/integration_axum.rs` di dalam folder example atau test terpisah): request penuh dari mulai sesi sampai hasil akhir via HTTP, memverifikasi response JSON sesuai `McatResult` — 4 test (`tower::ServiceExt::oneshot`, in-process, `app.rs` dipakai ulang via `#[path]` dari folder contoh): siklus penuh + `/result` + `/debug`, `/debug` 404 saat `debug=false`, `404` untuk sesi tidak dikenal, `400` untuk `item` salah
 
 ### Checklist Example Script
-- [ ] `examples/08_axum_api/main.rs` — server Axum yang bisa dijalankan (`cargo run --example axum_api`), didokumentasikan cara uji manual via `curl`
+- [x] `examples/08_axum_api/main.rs` — server Axum yang bisa dijalankan (`cargo run --example 08_axum_api --features serde`), didokumentasikan cara uji manual via `curl` (di komentar atas `main.rs` & `docs/panduan/08-integrasi-axum.md`)
 
 ### Checklist Dokumentasi
-- [ ] `docs/panduan/08-integrasi-axum.md` — cara memasang `mirtcat-engine` di project Axum (atau framework lain), pola penyimpanan state sesi (in-memory vs Redis/DB), contoh request/response JSON
+- [x] `docs/panduan/08-integrasi-axum.md` — cara memasang `mirtcat-engine` di project Axum (atau framework lain), pola penyimpanan state sesi (in-memory vs Redis/DB), contoh request/response JSON
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine session` hijau
-- [ ] Contoh Axum bisa dijalankan dan diuji manual end-to-end
-- [ ] Parity hasil akhir sesi gabungan dengan fixture R terverifikasi
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test -p mirtcat-engine session` hijau (12 unit test `session::tests` + 1 `integration_session`)
+- [x] Contoh Axum bisa dijalankan dan diuji manual end-to-end — server dikonfirmasi jalan (`cargo run --example 08_axum_api --features serde`, log "berjalan di http://127.0.0.1:3000"); uji siklus penuh end-to-end otomatis lewat `tests/integration_axum.rs` (`tower::oneshot`, in-process) karena `curl` interaktif ke localhost diblokir kebijakan sandbox sesi implementasi ini -- verifikasi in-process ini menjalankan PERSIS kode `app.rs` yang sama dengan `main.rs`, jadi setara secara substansi
+- [x] Parity hasil akhir sesi gabungan dengan fixture R terverifikasi (lih. Checklist Integration Test)
+- [x] `cargo test --all-targets` & `cargo clippy --all-targets -- -D warnings` hijau TANPA `--features serde` (213 test); `cargo test --all-targets --features serde` & `cargo clippy --all-targets --features serde -- -D warnings` hijau DENGAN `--features serde` (219 unit + seluruh integration test termasuk `integration_session` & 4 `integration_axum`); `cargo fmt --check` bersih untuk seluruh file yang disentuh Fase 8 (`src/session.rs`, `src/theta.rs` [+serde `InfoMatrix`], `src/irt/model.rs` [+supertrait], `src/lib.rs`, `src/{item_selection,ability_estimation,stopping_rule,exposure_control,content_balancing,initial_theta}/mod.rs` [+derive serde], `examples/08_axum_api/`, `tests/integration_axum.rs`, `tests/integration_session.rs`, `Cargo.toml`, `.github/workflows/ci.yml`) -- sisa diff `cargo fmt --check` di file Fase 3/4 lama tetap ada dari SEBELUM fase ini (lih. catatan Fase 7), di luar scope perubahan ini
 
 ---
 

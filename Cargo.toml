@@ -15,7 +15,21 @@ thiserror = "1"
 
 [dev-dependencies]
 approx = "0.5"
-serde_json = "1"
+# axum/tokio/tower/http-body-util: HANYA dipakai contoh `examples/08_axum_api`
+# (Fase 8) & test HTTP-nya (`tests/integration_axum.rs`) -- sengaja
+# dev-dependencies, bukan `[dependencies]`, supaya konsumen library
+# `mirtcat-engine` yang TIDAK butuh Axum tidak ikut menarik stack HTTP ini.
+axum = "0.8.9"
+http-body-util = "0.1.5"
+# `float_roundtrip`: tanpa ini, parser f64 default serde_json bisa meleset 1
+# ULP pada bilangan tertentu (dikonfirmasi lewat reproduksi manual saat Fase
+# 8 -- `serde_json::to_string(x)` lalu `from_str` TIDAK selalu menghasilkan
+# bit pattern f64 yang sama persis) -- fatal untuk test roundtrip serde yang
+# memakai `assert_eq!` eksak (bukan toleransi numerik) atas `ThetaVector`/
+# `SEVector`/`McatSession` (Fase 7 & 8).
+serde_json = { version = "1", features = ["float_roundtrip"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net"] }
+tower = { version = "0.5.3", features = ["util"] }
 
 [features]
 default = []
@@ -23,3 +37,21 @@ default = []
 # JSON -- opt-in (bukan default), pemanggil yang butuh persist hasil lewat
 # HTTP/DB (lih. `docs/panduan/07-hasil-akhir-theta.md`) yang mengaktifkan.
 serde = ["dep:serde"]
+
+# Contoh Axum (Fase 8) butuh `McatSession`/`SessionConfig` bisa di-serialize
+# (state sesi antar-request) DAN JSON body Axum sendiri wajib
+# Serialize/Deserialize -- beda dari `examples/07_final_result.rs` (yang
+# tetap compile tanpa serde lewat `#[cfg]` internal, cuma bagian JSON-nya
+# yang di-skip), contoh ini TIDAK bisa compile sama sekali tanpa fitur
+# `serde`, jadi `required-features` di sini satu-satunya opsi realistis
+# (bukan pilihan sembarangan) -- `cargo build/test --all-targets` default
+# (tanpa `--features serde`, sesuai CI) otomatis melewatinya.
+[[example]]
+name = "08_axum_api"
+path = "examples/08_axum_api/main.rs"
+required-features = ["serde"]
+
+[[test]]
+name = "integration_axum"
+path = "tests/integration_axum.rs"
+required-features = ["serde"]

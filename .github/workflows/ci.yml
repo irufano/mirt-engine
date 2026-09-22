@@ -31,3 +31,13 @@ jobs:
 
       - name: cargo test
         run: cargo test --all-targets
+
+      # Fase 8: contoh Axum (`examples/08_axum_api`) & test HTTP-nya
+      # (`tests/integration_axum.rs`) butuh fitur `serde` untuk compile
+      # sama sekali (`required-features = ["serde"]` di Cargo.toml) --
+      # tanpa dua step ini, keduanya tidak pernah benar-benar dicek CI.
+      - name: cargo clippy (serde)
+        run: cargo clippy --all-targets --features serde -- -D warnings
+
+      - name: cargo test (serde)
+        run: cargo test --all-targets --features serde

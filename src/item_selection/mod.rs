@@ -62,6 +62,7 @@ pub type ItemIndex = usize;
 /// kriteria tidak valid mustahil dilakukan, sehingga validasi terjadi di
 /// compile time, bukan runtime (lih. `PLAN.md` §Fase 2 "Keputusan desain").
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Criterion {
     /// Baseline non-adaptif: item bank disajikan berurutan (default,
     /// mengikuti default `criteria = "seq"` di `mirtCAT`).
@@ -88,6 +89,7 @@ pub enum Criterion {
 
 /// Konfigurasi seleksi item.
 #[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SelectionConfig {
     pub criterion: Criterion,
     /// Bobot per-dimensi, dipakai `TRule`/`ARule`/`WRule` (+ varian `prior`).
@@ -134,6 +136,7 @@ impl SelectionConfig {
 /// dihitung ulang dari daftar item terjawab tiap dipanggil, bukan
 /// diakumulasi inkremental.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PersonState {
     theta: ThetaVector,
     se: SEVector,
@@ -331,6 +334,7 @@ impl PersonState {
 /// `SelectionConfig::debug == true`; tidak memengaruhi item yang dipilih
 /// (prinsip desain #7 `PLAN.md`).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ItemSelectionDebug {
     /// Nilai kriteria mentah tiap kandidat (index item bank, nilai kriteria).
     /// Kosong untuk `Seq`/`Random` (tidak ada nilai kriteria untuk keduanya).

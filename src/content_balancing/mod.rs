@@ -53,6 +53,7 @@ use crate::item_selection::{Criterion, ItemIndex};
 /// kategori konten pada praktiknya kecil/tetap, tidak ada dependency
 /// interning di crate ini, menambahnya tidak proporsional untuk kasus ini).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContentCategory(pub String);
 
 impl ContentCategory {
@@ -75,6 +76,7 @@ impl From<String> for ContentCategory {
 
 /// Konfigurasi content balancing.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContentBalancingConfig {
     /// Kategori tiap item di bank, diindeks per `ItemIndex` — panjang &
     /// kecocokan dengan bank sesungguhnya adalah tanggung jawab pemanggil
@@ -172,6 +174,7 @@ impl ContentBalancingConfig {
 /// `ContentBalancingConfig::debug == true`; tidak memengaruhi pool kandidat
 /// yang dikembalikan (prinsip desain #7 `PLAN.md`).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContentBalancingDebug {
     /// Proporsi empiris tiap kategori dari `answered_items`, SELURUH
     /// kategori di `category_order` selalu muncul (0 bila belum pernah

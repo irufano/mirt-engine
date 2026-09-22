@@ -50,6 +50,7 @@ use crate::item_selection::ItemIndex;
 /// pola serupa: ketiadaan varian, bukan varian `None`, untuk state
 /// "fitur ini nonaktif").
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExposureMode {
     /// Loop terima/tolak per-item; nilai diindeks per **ID item**
     /// (panjang `n_items`). Lih. [`sympson_hetter`].
@@ -101,6 +102,7 @@ impl ExposureMode {
 
 /// Konfigurasi exposure control.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExposureControlConfig {
     pub mode: ExposureMode,
     /// Aktifkan jejak debug (prinsip desain #7 `PLAN.md`). Default `false`.
@@ -127,6 +129,7 @@ impl ExposureControlConfig {
 /// `ExposureControlConfig::debug == true`; tidak memengaruhi item yang
 /// dipilih (prinsip desain #7 `PLAN.md`).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExposureControlDebug {
     /// Sympson–Hetter: `(item, diterima)` tiap kandidat yang dicoba dalam
     /// loop terima/tolak, urut percobaan -- entri terakhir adalah `chosen`.

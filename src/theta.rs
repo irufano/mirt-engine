@@ -241,6 +241,42 @@ impl InfoMatrix {
     }
 }
 
+// Serialisasi manual sebagai `Vec<Vec<f64>>` row-major (bukan derive di atas
+// `nalgebra::DMatrix`) -- pola sama persis seperti `ThetaVector`/`SEVector`
+// di atas (menghindari dependency `nalgebra/serde-serialize`). Dipakai Fase 8
+// (`ItemSelectionDebug::info_before`/`info_after`, bagian `McatSession::debug_log`).
+#[cfg(feature = "serde")]
+impl serde::Serialize for InfoMatrix {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let rows: Vec<Vec<f64>> = (0..self.nfact())
+            .map(|i| (0..self.nfact()).map(|j| self.0[(i, j)]).collect())
+            .collect();
+        rows.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for InfoMatrix {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let rows = Vec::<Vec<f64>>::deserialize(deserializer)?;
+        let nfact = rows.len();
+        let mut m = DMatrix::zeros(nfact, nfact);
+        for (i, row) in rows.into_iter().enumerate() {
+            if row.len() != nfact {
+                return Err(serde::de::Error::custom(format!(
+                    "InfoMatrix::deserialize: baris {i} panjang {} (diharapkan {nfact}, matriks \
+                     harus persegi)",
+                    row.len()
+                )));
+            }
+            for (j, v) in row.into_iter().enumerate() {
+                m[(i, j)] = v;
+            }
+        }
+        Ok(InfoMatrix(m))
+    }
+}
+
 impl Add for InfoMatrix {
     type Output = InfoMatrix;
 
@@ -273,6 +309,24 @@ mod tests {
         let json = serde_json::to_string(&se).unwrap();
         let back: SEVector = serde_json::from_str(&json).unwrap();
         assert_eq!(back, se);
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn info_matrix_serde_roundtrip_as_row_major_nested_array() {
+        let m =
+            InfoMatrix::from_matrix(DMatrix::from_row_slice(2, 2, &[1.0, 2.0, 3.0, 4.0])).unwrap();
+        let json = serde_json::to_string(&m).unwrap();
+        assert_eq!(json, "[[1.0,2.0],[3.0,4.0]]");
+        let back: InfoMatrix = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, m);
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn info_matrix_deserialize_rejects_non_square_rows() {
+        let err = serde_json::from_str::<InfoMatrix>("[[1.0,2.0],[3.0]]").unwrap_err();
+        assert!(err.to_string().contains("persegi"));
     }
 
     #[test]
