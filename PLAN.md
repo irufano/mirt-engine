@@ -178,8 +178,13 @@ mirtcat-engine/
 │   ├── 02_item_selection_e_rule.rs
 │   ├── 02_item_selection_w_rule.rs
 │   ├── 03_ability_estimation_eap_map_ml_wle.rs
-│   ├── 04_stopping_rule.rs
-│   ├── 05_exposure_control.rs
+│   ├── 04_stopping_rule_min_sem.rs
+│   ├── 04_stopping_rule_delta_thetas.rs
+│   ├── 04_stopping_rule_ci.rs
+│   ├── 04_stopping_rule_sprt.rs
+│   ├── 04_stopping_rule_max_items_time.rs
+│   ├── 05_exposure_control_sympson_hetter.rs
+│   ├── 05_exposure_control_randomesque.rs
 │   ├── 06_content_balancing.rs
 │   ├── 07_final_result.rs
 │   └── 08_axum_api/                # contoh integrasi web API (Fase 8)
@@ -203,8 +208,15 @@ mirtcat-engine/
     │   ├── 02-item-selection-e-rule.md
     │   ├── 02-item-selection-w-rule.md
     │   ├── 03-ability-estimation.md
-    │   ├── 04-stopping-rule.md
-    │   ├── 05-exposure-control.md
+    │   ├── 04-stopping-rule-overview.md
+    │   ├── 04-stopping-rule-min-sem.md
+    │   ├── 04-stopping-rule-delta-thetas.md
+    │   ├── 04-stopping-rule-ci.md
+    │   ├── 04-stopping-rule-sprt.md
+    │   ├── 04-stopping-rule-max-items-time.md
+    │   ├── 05-exposure-control-overview.md
+    │   ├── 05-exposure-control-sympson-hetter.md
+    │   ├── 05-exposure-control-randomesque.md
     │   ├── 06-content-balancing.md
     │   └── 07-hasil-akhir-theta.md
     └── panduan/                    # cara pakai (how-to)
@@ -220,8 +232,15 @@ mirtcat-engine/
         ├── 02-item-selection-e-rule.md
         ├── 02-item-selection-w-rule.md
         ├── 03-ability-estimation.md
-        ├── 04-stopping-rule.md
-        ├── 05-exposure-control.md
+        ├── 04-stopping-rule-overview.md
+        ├── 04-stopping-rule-min-sem.md
+        ├── 04-stopping-rule-delta-thetas.md
+        ├── 04-stopping-rule-ci.md
+        ├── 04-stopping-rule-sprt.md
+        ├── 04-stopping-rule-max-items-time.md
+        ├── 05-exposure-control-overview.md
+        ├── 05-exposure-control-sympson-hetter.md
+        ├── 05-exposure-control-randomesque.md
         ├── 06-content-balancing.md
         ├── 07-hasil-akhir-theta.md
         └── 08-integrasi-axum.md
@@ -793,7 +812,7 @@ khusus dimensi tinggi.
 
 ## Fase 4 — Stopping Rule pada MCAT
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
 
 ### Tujuan
 Menentukan kapan sesi tes berhenti, dengan semantik **"ALL dimensi"** untuk
@@ -845,42 +864,71 @@ langsung dari `theta` berupa vektor pada MCAT.
 - `stopping_rule::CustomStop` — trait objek (`Fn(&PersonState) -> bool`) untuk hook kustom pengguna.
 
 ### Checklist Implementasi
-- [ ] `ClassifyType`, `StoppingConfig`, `StopDecision`
-- [ ] `sem.rs` — evaluasi `met_SEM` per-dimensi + `all()`
-- [ ] `delta_theta.rs` — evaluasi `met_delta_thetas` per-dimensi + `all()`
-- [ ] `classify_ci.rs` — z-score per dimensi vs cutoff, keputusan per-dimensi, `all()` untuk stop
-- [ ] `sprt.rs` — log-likelihood ratio test terhadap `theta_lower`/`theta_upper`
-- [ ] `max_items_time.rs` — kondisi `max_items`/`max_time`
-- [ ] Dukungan `CustomStop` (trait objek/closure)
-- [ ] Guard `allow_constrain_breaks`
-- [ ] Dukungan debug trace opsional (`StoppingConfig::debug`, default `false`) → `Option<StoppingRuleDebug>` (nilai SE/delta-theta mentah, rasio log-likelihood SPRT)
+- [x] `ClassifyType`, `StoppingConfig`, `StopDecision`
+- [x] `sem.rs` — evaluasi `met_SEM` per-dimensi + `all()`
+- [x] `delta_theta.rs` — evaluasi `met_delta_thetas` per-dimensi + `all()`
+- [x] `classify_ci.rs` — z-score per dimensi vs cutoff, keputusan per-dimensi, `all()` untuk stop
+- [x] `sprt.rs` — log-likelihood ratio test terhadap `theta_lower`/`theta_upper`
+- [x] `max_items_time.rs` — kondisi `max_items`/`max_time`
+- [x] Dukungan `CustomStop` (trait objek/closure)
+- [x] Guard `allow_constrain_breaks`
+- [x] Dukungan debug trace opsional (`StoppingConfig::debug`, default `false`) → `Option<StoppingRuleDebug>` (nilai SE/delta-theta mentah, rasio log-likelihood SPRT)
 
 ### Checklist Unit Test
-- [ ] `met_SEM` — stop hanya ketika **semua** dimensi di bawah `min_SEM`; satu dimensi belum memenuhi → tidak stop
-- [ ] `met_delta_thetas` — sama, semantik `all()`
-- [ ] `Ci` classify — kasus 2 dimensi, satu terklasifikasi yakin & satu belum → belum stop; keduanya yakin → stop dengan keputusan per-dimensi yang benar
-- [ ] `Sprt` — kasus respons konsisten dengan `theta_upper` → keputusan `'above cutoff'`; konsisten `theta_lower` → `'below cutoff'`; ambigu → belum stop
-- [ ] `max_items` & `max_time` menghentikan tes terlepas dari precision
-- [ ] `CustomStop` closure dipanggil dan hasilnya dihormati
-- [ ] `allow_constrain_breaks=false` mencegah stop di tengah blok `ordered` constraint yang belum selesai
-- [ ] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(StoppingRuleDebug)` terisi (mis. `se_values` cocok dengan SE aktual di `person_state`) dan tidak mengubah `StopDecision` yang dikembalikan
+- [x] `met_SEM` — stop hanya ketika **semua** dimensi di bawah `min_SEM`; satu dimensi belum memenuhi → tidak stop
+- [x] `met_delta_thetas` — sama, semantik `all()`
+- [x] `Ci` classify — kasus 2 dimensi, satu terklasifikasi yakin & satu belum → belum stop; keduanya yakin → stop dengan keputusan per-dimensi yang benar
+- [x] `Sprt` — kasus respons konsisten dengan `theta_upper` → keputusan `'above cutoff'`; konsisten `theta_lower` → `'below cutoff'`; ambigu → belum stop
+- [x] `max_items` & `max_time` menghentikan tes terlepas dari precision
+- [x] `CustomStop` closure dipanggil dan hasilnya dihormati
+- [x] `allow_constrain_breaks=false` mencegah stop di tengah blok `ordered` constraint yang belum selesai
+- [x] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(StoppingRuleDebug)` terisi (mis. `se_values` cocok dengan SE aktual di `person_state`) dan tidak mengubah `StopDecision` yang dikembalikan
 
 ### Checklist Integration Test
-- [ ] Fixture R: simulasi sesi penuh 3 dimensi dengan `min_SEM` tertentu → catat item ke berapa tes berhenti & keputusan akhir dari `mirtCAT`
-- [ ] Bandingkan titik-berhenti & keputusan klasifikasi Rust vs R
-- [ ] Fixture R terpisah untuk mode `SPRT` (dua hipotesis vektor), bandingkan keputusan (`above`/`below`/`no decision`) & item ke berapa berhenti
+- [x] Fixture R: simulasi sesi penuh 3 dimensi dengan `min_SEM` tertentu → catat item ke berapa tes berhenti & keputusan akhir dari `mirtCAT`
+- [x] Bandingkan titik-berhenti & keputusan klasifikasi Rust vs R
+- [x] Fixture R terpisah untuk mode `SPRT` (dua hipotesis vektor), bandingkan keputusan (`above`/`below`/`no decision`) & item ke berapa berhenti
 
 ### Checklist Example Script
-- [ ] `examples/04_stopping_rule.rs` — simulasi sesi dengan berbagai kombinasi (`min_SEM` saja, `delta_thetas`, `CI`, `SPRT`, `max_items`), cetak kapan & kenapa tes berhenti
+
+> Dipisah 1 file per mekanisme berhenti (mengikuti 1:1 pemetaan modul
+> `stopping_rule::*` di §"Desain Modul Rust" di atas — `sem.rs`,
+> `delta_theta.rs`, `classify_ci.rs`, `sprt.rs`, `max_items_time.rs`) supaya
+> tiap contoh fokus pada satu aturan berhenti, bukan menggabungkan semua
+> kombinasi sekaligus dalam satu file — sama seperti pola yang dipakai Fase
+> 2 (item selection) & Fase 3 (ability estimation).
+
+- [x] `examples/04_stopping_rule_min_sem.rs` — sesi berhenti karena `min_SEM` terpenuhi di **semua** dimensi (`all()`); tunjukkan satu dimensi belum presisi menahan tes tetap lanjut
+- [x] `examples/04_stopping_rule_delta_thetas.rs` — sesi berhenti karena `|Δtheta|` antar-langkah di bawah `delta_thetas` di semua dimensi; cetak deret delta per-item hingga stabil
+- [x] `examples/04_stopping_rule_ci.rs` — klasifikasi `CI` 2+ dimensi (z-score per-dimensi vs cutoff via `classify_alpha`); tunjukkan status `'no decision'` bertahan sampai semua dimensi terklasifikasi
+- [x] `examples/04_stopping_rule_sprt.rs` — dua hipotesis vektor `theta_lower`/`theta_upper`; cetak rasio log-likelihood & batas `[a, b]` per-langkah hingga keputusan `'above cutoff'`/`'below cutoff'`/`'no decision'` tercapai
+- [x] `examples/04_stopping_rule_max_items_time.rs` — `max_items`/`max_time` menghentikan sesi meski presisi belum tercapai; simulasikan `nfact` besar di mana syarat "all" secara statistik jarang terpenuhi, sehingga batas ini jadi kondisi berhenti praktis
 
 ### Checklist Dokumentasi
-- [ ] `docs/teori/04-stopping-rule.md` — semantik "all dimensi", SPRT multidimensional, referensi akademik
-- [ ] `docs/panduan/04-stopping-rule.md` — cara memilih kombinasi aturan berhenti yang realistis untuk `nfact` besar
+
+> Sama seperti Checklist Example Script: dipisah 1 pasang teori+panduan per
+> mekanisme berhenti, plus satu dokumen overview bersama untuk konteks
+> lintas-mekanisme (semantik "all dimensi", `CustomStop`,
+> `allow_constrain_breaks`, debug trace, implikasi `nfact` besar) yang tidak
+> spesifik ke satu mekanisme.
+
+- [x] `docs/teori/04-stopping-rule-overview.md` — semantik "all dimensi" untuk `min_SEM`/`delta_thetas`/`CI`, kondisi independen (`max_items`/`max_time`/`CustomStop`), guard `allow_constrain_breaks`, implikasi `nfact` besar (Weiss & Kingsbury, 1984; van der Linden & Glas, 2010), peta ke dokumen per-mekanisme di bawah
+- [x] `docs/teori/04-stopping-rule-min-sem.md` — rumus `met_SEM`, semantik `all()` per-dimensi
+- [x] `docs/teori/04-stopping-rule-delta-thetas.md` — rumus `met_delta_thetas`, semantik `all()` per-dimensi
+- [x] `docs/teori/04-stopping-rule-ci.md` — klasifikasi `CI`, z-score per-dimensi vs cutoff, `classify_alpha`
+- [x] `docs/teori/04-stopping-rule-sprt.md` — uji rasio log-likelihood sekuensial Wald, turunan batas `[a, b]` dari `alpha`/`beta`, referensi Wald (1945)
+- [x] `docs/teori/04-stopping-rule-max-items-time.md` — semantik `max_items`/`max_time` sebagai batas keras independen dari presisi
+- [x] `docs/panduan/04-stopping-rule-overview.md` — cara memilih kombinasi aturan berhenti yang realistis untuk `nfact` besar, kapan `max_items` jadi kondisi berhenti praktis, peta ke panduan per-mekanisme
+- [x] `docs/panduan/04-stopping-rule-min-sem.md`
+- [x] `docs/panduan/04-stopping-rule-delta-thetas.md`
+- [x] `docs/panduan/04-stopping-rule-ci.md`
+- [x] `docs/panduan/04-stopping-rule-sprt.md`
+- [x] `docs/panduan/04-stopping-rule-max-items-time.md`
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine stopping_rule` hijau
-- [ ] Parity titik-berhenti & keputusan klasifikasi dengan fixture R terverifikasi
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test -p mirtcat-engine stopping_rule` hijau
+- [x] Parity titik-berhenti & keputusan klasifikasi dengan fixture R terverifikasi
 
 ---
 
@@ -966,11 +1014,30 @@ mode yang didukung `mirtCAT`: Sympson–Hetter (`'SH'`) dan top-*n* random
 - [ ] Uji integrasi dengan Fase 2: exposure control mengonsumsi hasil kriteria (`crit` values) dengan benar sebagai input ranking
 
 ### Checklist Example Script
-- [ ] `examples/05_exposure_control.rs` — simulasi 1000 peserta sintetis, cetak distribusi frekuensi kemunculan tiap item untuk mode `SH` vs `Randomesque` vs tanpa exposure control (bukti visual bahwa exposure control meratakan distribusi)
+
+> Dipisah 1 file per mode (mengikuti 1:1 pemetaan modul
+> `exposure_control::*` di §"Desain Modul Rust" di atas — `sympson_hetter.rs`,
+> `randomesque.rs`) supaya tiap contoh fokus pada satu mode, bukan
+> menggabungkan keduanya sekaligus dalam satu file — sama seperti pola yang
+> dipakai Fase 2/3/4.
+
+- [ ] `examples/05_exposure_control_sympson_hetter.rs` — simulasi 1000 peserta sintetis dengan mode `SympsonHetter`, cetak distribusi frekuensi kemunculan tiap item vs baseline tanpa exposure control (bukti visual distribusi meratakan), termasuk contoh fallback paksa-terima saat kandidat tersisa satu
+- [ ] `examples/05_exposure_control_randomesque.rs` — simulasi 1000 peserta sintetis dengan mode `Randomesque`, bandingkan `exposure=1` (deterministik, selalu kandidat terbaik) vs `exposure=3` (distribusi pilihan mencakup 3 kandidat teratas) vs baseline tanpa exposure control
 
 ### Checklist Dokumentasi
-- [ ] `docs/teori/05-exposure-control.md` — algoritma Sympson–Hetter & randomesque, referensi akademik
-- [ ] `docs/panduan/05-exposure-control.md` — cara memilih & mengkalibrasi nilai `exposure`, peringatan risiko kehabisan item saat digabung content balancing
+
+> Sama seperti Checklist Example Script: dipisah 1 pasang teori+panduan per
+> mode, plus satu dokumen overview bersama untuk konteks lintas-mode
+> (deteksi otomatis `from_values()`, perbedaan pengindeksan posisi vs ID
+> item, error kandidat habis, debug trace, interaksi dengan content
+> balancing) yang tidak spesifik ke satu mode.
+
+- [ ] `docs/teori/05-exposure-control-overview.md` — deteksi mode otomatis via `from_values()` (rentang nilai `[0,1]` vs `>1`), perbedaan pengindeksan kritis (`Randomesque` per posisi penyajian vs `SympsonHetter` per ID item), error eksplisit saat kandidat habis, referensi tinjauan Georgiadou et al. (2007), peta ke dokumen per-mode di bawah
+- [ ] `docs/teori/05-exposure-control-sympson-hetter.md` — algoritma loop terima/tolak Sympson–Hetter, fallback paksa-terima, referensi Sympson & Hetter (1985)
+- [ ] `docs/teori/05-exposure-control-randomesque.md` — algoritma top-*n* random (randomesque), referensi McBride & Martin (1983)
+- [ ] `docs/panduan/05-exposure-control-overview.md` — cara memilih mode & mengkalibrasi nilai `exposure` secara umum, peringatan risiko kehabisan item saat digabung content balancing, peta ke panduan per-mode
+- [ ] `docs/panduan/05-exposure-control-sympson-hetter.md`
+- [ ] `docs/panduan/05-exposure-control-randomesque.md`
 
 ### Definition of Done
 - [ ] Semua checklist di atas tercentang

@@ -42,6 +42,8 @@
 
 pub mod criteria;
 
+use std::time::Duration;
+
 use rand::Rng;
 
 use crate::bank::{GroupParams, ItemBank};
@@ -135,12 +137,27 @@ impl SelectionConfig {
 pub struct PersonState {
     theta: ThetaVector,
     se: SEVector,
+    /// `theta` sebelum update terakhir (`set_theta`/`set_estimate`) --
+    /// `None` sebelum estimasi ulang pertama kali dilakukan. Padanan baris
+    /// ke-`(n-1)` `person$thetas_history` di `mirtCAT`, dipakai Fase 4
+    /// (stopping rule) untuk evaluasi `met_delta_thetas` (`|Δtheta|` antar
+    /// langkah terakhir) tanpa perlu menyimpan riwayat penuh -- hanya nilai
+    /// sebelumnya yang pernah relevan (lih. `DesignClass.R:352-354`:
+    /// `thetas_history[nrow(...),] - thetas_history[nrow(...)-1L,]`).
+    previous_theta: Option<ThetaVector>,
     answered_items: Vec<ItemIndex>,
     /// Kategori respons per item terjawab, paralel dengan `answered_items`
     /// (index `i` di sini adalah kategori respons untuk `answered_items[i]`).
     /// Dibutuhkan Fase 3 (likelihood butuh tahu kategori yang benar-benar
     /// dijawab, bukan cuma item mana yang diadministrasikan).
     responses: Vec<usize>,
+    /// Waktu yang dihabiskan per item terjawab -- padanan `person$item_time`
+    /// di `mirtCAT`, dipakai Fase 4 untuk evaluasi `max_time`. Tidak perlu
+    /// paralel 1:1 dengan `answered_items` (boleh kosong bila timing tidak
+    /// dilacak) -- `total_time()` lantas selalu nol, artinya batas
+    /// `max_time` efektif tidak pernah tercapai, konsisten dengan default
+    /// `max_time = Inf` mirtCAT saat fitur ini tidak dipakai.
+    item_times: Vec<Duration>,
 }
 
 impl PersonState {
@@ -151,8 +168,10 @@ impl PersonState {
         Self {
             theta: ThetaVector::zeros(nfact),
             se: SEVector::zeros(nfact),
+            previous_theta: None,
             answered_items: Vec::new(),
             responses: Vec::new(),
+            item_times: Vec::new(),
         }
     }
 
@@ -163,8 +182,10 @@ impl PersonState {
         Self {
             theta,
             se: SEVector::zeros(nfact),
+            previous_theta: None,
             answered_items: Vec::new(),
             responses: Vec::new(),
+            item_times: Vec::new(),
         }
     }
 
@@ -174,8 +195,10 @@ impl PersonState {
         Self {
             theta,
             se,
+            previous_theta: None,
             answered_items: Vec::new(),
             responses: Vec::new(),
+            item_times: Vec::new(),
         }
     }
 
@@ -194,15 +217,25 @@ impl PersonState {
     /// Perbarui estimasi `theta` saja (dipakai test/eksperimen yang tidak
     /// peduli SE). Untuk hasil `ability_estimation::estimate`, pakai
     /// `set_estimate` yang memperbarui `theta` & SE sekaligus.
+    ///
+    /// `theta` lama disimpan ke `previous_theta` sebelum ditimpa (lih. field
+    /// `previous_theta` -- dipakai Fase 4 untuk `met_delta_thetas`).
     pub fn set_theta(&mut self, theta: ThetaVector) {
-        self.theta = theta;
+        self.previous_theta = Some(std::mem::replace(&mut self.theta, theta));
     }
 
     /// Perbarui `theta` & SE sekaligus — dipakai hasil `ability_estimation::estimate`
-    /// (Fase 3).
+    /// (Fase 3). `theta` lama disimpan ke `previous_theta` (lih. `set_theta`).
     pub fn set_estimate(&mut self, theta: ThetaVector, se: SEVector) {
-        self.theta = theta;
+        self.previous_theta = Some(std::mem::replace(&mut self.theta, theta));
         self.se = se;
+    }
+
+    /// `theta` sebelum update terakhir -- `None` sebelum estimasi ulang
+    /// pertama kali dilakukan (mis. sebelum item pertama dijawab & di
+    /// re-estimasi). Dipakai Fase 4 untuk evaluasi `met_delta_thetas`.
+    pub fn previous_theta(&self) -> Option<&ThetaVector> {
+        self.previous_theta.as_ref()
     }
 
     pub fn n_answered(&self) -> usize {
@@ -226,6 +259,18 @@ impl PersonState {
     pub fn record_answer(&mut self, item_index: ItemIndex, response: usize) {
         self.answered_items.push(item_index);
         self.responses.push(response);
+    }
+
+    /// Catat waktu yang dihabiskan untuk satu item -- padanan `person$item_time`.
+    /// Dipakai Fase 4 untuk evaluasi `max_time`. Opsional: bila tidak pernah
+    /// dipanggil, `total_time()` selalu nol (lih. catatan field `item_times`).
+    pub fn record_item_time(&mut self, duration: Duration) {
+        self.item_times.push(duration);
+    }
+
+    /// Total waktu terpakai sejauh ini (jumlah seluruh `record_item_time`).
+    pub fn total_time(&self) -> Duration {
+        self.item_times.iter().sum()
     }
 
     /// Matriks informasi Fisher kumulatif dari seluruh item terjawab,
@@ -547,6 +592,41 @@ mod tests {
         let mut person = PersonState::new(2);
         person.record_answer(999, 1);
         assert!(person.info_thetas(&bank).is_err());
+    }
+
+    #[test]
+    fn person_state_previous_theta_is_none_until_first_update() {
+        let person = PersonState::new(2);
+        assert!(person.previous_theta().is_none());
+    }
+
+    #[test]
+    fn person_state_set_theta_tracks_previous_theta() {
+        let mut person = PersonState::from_theta(ThetaVector::from_vec(vec![0.0, 0.0]));
+        assert!(person.previous_theta().is_none());
+
+        person.set_theta(ThetaVector::from_vec(vec![0.5, -0.2]));
+        assert_eq!(person.previous_theta(), Some(&ThetaVector::from_vec(vec![0.0, 0.0])));
+        assert_eq!(person.theta(), &ThetaVector::from_vec(vec![0.5, -0.2]));
+
+        person.set_estimate(
+            ThetaVector::from_vec(vec![0.8, -0.1]),
+            SEVector::from_vec(vec![0.3, 0.3]),
+        );
+        assert_eq!(person.previous_theta(), Some(&ThetaVector::from_vec(vec![0.5, -0.2])));
+        assert_eq!(person.theta(), &ThetaVector::from_vec(vec![0.8, -0.1]));
+    }
+
+    #[test]
+    fn person_state_total_time_sums_recorded_durations_and_defaults_to_zero() {
+        use std::time::Duration;
+
+        let mut person = PersonState::new(1);
+        assert_eq!(person.total_time(), Duration::ZERO);
+
+        person.record_item_time(Duration::from_secs(5));
+        person.record_item_time(Duration::from_secs(3));
+        assert_eq!(person.total_time(), Duration::from_secs(8));
     }
 
     #[test]
