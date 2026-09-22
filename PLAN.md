@@ -284,8 +284,8 @@ sebelum fase berikutnya dimulai.
 | 1 | Theta Awal | ✅ Selesai |
 | 2 | Algoritma Pemilihan Item | ✅ Selesai |
 | 3 | Algoritma Estimasi Kemampuan | ✅ Selesai |
-| 4 | Stopping Rule | ⬜ Belum Dimulai |
-| 5 | Exposure Control | ⬜ Belum Dimulai |
+| 4 | Stopping Rule | ✅ Selesai |
+| 5 | Exposure Control | ✅ Selesai |
 | 6 | Content Balancing | ⬜ Belum Dimulai |
 | 7 | Hasil Bersih Akhir untuk Theta | ⬜ Belum Dimulai |
 | 8 | Integrasi End-to-End & Contoh Axum | ⬜ Belum Dimulai |
@@ -934,7 +934,45 @@ langsung dari `theta` berupa vektor pada MCAT.
 
 ## Fase 5 — Exposure Control pada MCAT
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
+
+> **Update (2026-09-22)**: perilaku diverifikasi langsung terhadap source
+> `mirtCAT` 1.14 terpasang (`getFromNamespace("findNextCATItem", "mirtCAT")`,
+> `selectMethod("initialize", "Design")`) — bukan hanya dibaca dari sketsa
+> `PLAN.md` di bawah. Tiga temuan penting:
+> 1. **`seq`/`random` tidak pernah masuk exposure control** — keduanya
+>    `return()` di `findNextCATItem()` SEBELUM `crit` dihitung sama sekali;
+>    exposure control hanya berlaku untuk kriteria berbasis skor. Direplikasi
+>    lewat `item_selection::rank_candidates()` (fungsi baru, diekstrak dari
+>    `select_next_item` tanpa mengubah perilaku/nilai numeriknya — 181 test
+>    Fase 0-4 tetap hijau setelah refactor) yang mengembalikan `Err` untuk
+>    `Seq`/`Random`.
+> 2. **Status "item tidak valid untuk sesi ini" (`person$valid_item` R)
+>    sengaja TIDAK ditambahkan sebagai field `PersonState`** — mengikuti
+>    preseden Fase 4 (`allow_constrain_breaks` jadi parameter, bukan field,
+>    untuk tanggung jawab lintas-fase yang belum ada orchestrator-nya).
+>    `select_with_exposure()` menerima `valid_items: &mut [bool]` sebagai
+>    parameter eksplisit, dimiliki & disiapkan pemanggil (nantinya
+>    `McatSession` Fase 8) — deviasi dari sketsa awal §"Desain Modul Rust" di
+>    bawah, yang semula menaruhnya sebagai parameter `person_valid_items`
+>    tanpa merinci relasinya dengan `PersonState`.
+> 3. **Deteksi mode & mekanisme SH/randomesque** (`Design$initialize`,
+>    `findNextCATItem`) terverifikasi persis sesuai sketsa awal di bawah,
+>    termasuk detail non-obvious: SH pengindeksan per ID-item vs randomesque
+>    per posisi-penyajian, forced-accept SH TIDAK menandai item invalid,
+>    `as.integer()` R men-TRUNCATE (bukan membulatkan) saat validasi mode
+>    "sample".
+>
+> Fixture R (`tests/fixtures/exposure_control.json`, dihasilkan sungguhan
+> lewat `Rscript tests/fixtures/generate_r_fixtures_exposure_control.R`)
+> mencakup tiga bagian: `mode_detection` (deteksi otomatis EKSAK, tanpa RNG),
+> `sample_replay` (satu sesi randomesque, diverifikasi lewat keanggotaan
+> top-*n*), `sh_simulation` (300 peserta SH, diverifikasi lewat properti
+> statistik exact — item exposure=0.0 TIDAK PERNAH lolos, dibuktikan 0/1800
+> di R & 0/N independen di Rust). `cargo test` (205 test: 181 unit + 24
+> integrasi lintas 6 file, termasuk 3 test baru
+> `tests/integration_exposure_control.rs`) & `cargo clippy --all-targets --
+> -D warnings` hijau.
 
 ### Tujuan
 Membatasi frekuensi kemunculan item populer di antara peserta, dengan dua
@@ -982,36 +1020,40 @@ mode yang didukung `mirtCAT`: Sympson–Hetter (`'SH'`) dan top-*n* random
   on E-Learning*, 6(1). (tinjauan strategi exposure control)
 
 ### Desain Modul Rust
+
+> Diperbarui dari sketsa awal sesuai implementasi final (pola sama seperti
+> Fase 2/4 — lih. catatan "Update" di atas untuk alasan tiap deviasi).
+
 - `exposure_control::ExposureMode` — enum `SympsonHetter(Vec<f64>)`, `Randomesque(Vec<u32>)`.
 - `exposure_control::ExposureMode::from_values(values: &[f64]) -> Result<Self, MirtCatError>` — replikasi deteksi mode otomatis R.
-- `exposure_control::ExposureControlConfig { mode: ExposureMode, debug: bool }` — `debug` default `false` (prinsip desain #7); membungkus `mode` supaya `select_with_exposure` punya satu parameter config yang konsisten dengan fase lain.
-- `exposure_control::ExposureControlDebug { attempts: Vec<(ItemIndex, bool /* diterima */)>, forced_accept: bool }` — urutan kandidat yang dicoba & diterima/ditolak (Sympson–Hetter), atau kandidat top-*n* yang dipertimbangkan (Randomesque); `forced_accept` menandai jalur fallback "kandidat tersisa satu".
-- `exposure_control::select_with_exposure(config, ranked_candidates, position_in_test, person_valid_items, rng) -> (ItemIndex, Option<ExposureControlDebug>)`.
-- Validasi panjang vektor `== nitems` saat konstruksi.
+- `exposure_control::ExposureControlConfig { mode: ExposureMode, debug: bool }` — `debug` default `false` (prinsip desain #7); `ExposureControlConfig::new(mode, n_items, debug)` memvalidasi panjang vektor `== n_items`.
+- `exposure_control::ExposureControlDebug { attempts: Vec<(ItemIndex, bool /* diterima */)>, forced_accept: bool }` — urutan kandidat yang dicoba & diterima/ditolak (Sympson–Hetter), atau kandidat top-*n* yang dipertimbangkan (Randomesque, seluruhnya ditandai `true`); `forced_accept` menandai jalur fallback "kandidat tersisa satu" (selalu `false` untuk `Randomesque`).
+- `exposure_control::select_with_exposure(config: &ExposureControlConfig, candidate_scores: &[(ItemIndex, f64)], position_in_test: usize, valid_items: &mut [bool], rng: &mut impl Rng) -> Result<(ItemIndex, Option<ExposureControlDebug>), MirtCatError>` — parameter final `valid_items: &mut [bool]` (bukan `person_valid_items` generik di sketsa awal): dimiliki & disiapkan pemanggil, BUKAN field `PersonState` (lih. catatan "Update" poin 2). `candidate_scores` diperoleh dari `item_selection::rank_candidates()` (fungsi baru Fase 2, diekstrak dari `select_next_item` tanpa mengubah perilakunya).
+- Validasi panjang vektor `== nitems` saat konstruksi `ExposureControlConfig::new`.
 
 ### Checklist Implementasi
-- [ ] `ExposureMode` (enum) + `from_values()` (deteksi otomatis gaya R)
-- [ ] Validasi panjang vektor `== nitems`, validasi `Randomesque` berisi integer `≥ 1`
-- [ ] `sympson_hetter.rs` — loop terima/tolak + penandaan `valid_item=false` per-sesi + fallback paksa-terima saat kandidat tersisa satu
-- [ ] `randomesque.rs` — ranking kandidat + pemilihan acak dari top-*n* berdasarkan posisi urutan penyajian
-- [ ] Error eksplisit saat kandidat habis (bukan panic)
-- [ ] Dukungan debug trace opsional (`ExposureControlConfig::debug`, default `false`) → `Option<ExposureControlDebug>` (urutan kandidat dicoba/diterima/ditolak, status fallback paksa-terima)
+- [x] `ExposureMode` (enum) + `from_values()` (deteksi otomatis gaya R)
+- [x] Validasi panjang vektor `== nitems`, validasi `Randomesque` berisi integer `≥ 1`
+- [x] `sympson_hetter.rs` — loop terima/tolak + penandaan `valid_item=false` per-sesi + fallback paksa-terima saat kandidat tersisa satu
+- [x] `randomesque.rs` — ranking kandidat + pemilihan acak dari top-*n* berdasarkan posisi urutan penyajian
+- [x] Error eksplisit saat kandidat habis (bukan panic)
+- [x] Dukungan debug trace opsional (`ExposureControlConfig::debug`, default `false`) → `Option<ExposureControlDebug>` (urutan kandidat dicoba/diterima/ditolak, status fallback paksa-terima)
 
 ### Checklist Unit Test
-- [ ] `from_values()` — semua di `[0,1]` → `SympsonHetter`; ada `>1` → `Randomesque`; nilai `>1` non-integer → error
-- [ ] `Randomesque` dengan `exposure=1` selalu memilih kandidat terbaik (deterministik)
-- [ ] `Randomesque` dengan `exposure=3` memilih dari 3 kandidat teratas (properti statistik: distribusi pilihan mencakup ketiga kandidat dalam banyak sampel, RNG seeded untuk reprodusibilitas)
-- [ ] `SympsonHetter` — item dengan `exposure[item]=0.0` tidak pernah lolos dalam banyak percobaan (RNG seeded)
-- [ ] `SympsonHetter` — item dengan `exposure[item]=1.0` selalu lolos begitu jadi kandidat terbaik
-- [ ] `SympsonHetter` — fallback paksa-terima saat kandidat tersisa satu meski `exposure` rendah
-- [ ] Item yang ditolak `SympsonHetter` ditandai tidak valid hanya untuk sesi berjalan, tidak memengaruhi sesi/peserta lain (state terisolasi per `PersonState`)
-- [ ] Error dikembalikan (bukan panic) saat seluruh kandidat tersaring habis
-- [ ] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(ExposureControlDebug)` mencatat setiap kandidat yang dicoba (termasuk yang ditolak) dan tidak mengubah item yang dikembalikan
+- [x] `from_values()` — semua di `[0,1]` → `SympsonHetter`; ada `>1` → `Randomesque`; nilai `>1` non-integer → error
+- [x] `Randomesque` dengan `exposure=1` selalu memilih kandidat terbaik (deterministik)
+- [x] `Randomesque` dengan `exposure=3` memilih dari 3 kandidat teratas (properti statistik: distribusi pilihan mencakup ketiga kandidat dalam banyak sampel, RNG seeded untuk reprodusibilitas)
+- [x] `SympsonHetter` — item dengan `exposure[item]=0.0` tidak pernah lolos dalam banyak percobaan (RNG seeded)
+- [x] `SympsonHetter` — item dengan `exposure[item]=1.0` selalu lolos begitu jadi kandidat terbaik
+- [x] `SympsonHetter` — fallback paksa-terima saat kandidat tersisa satu meski `exposure` rendah
+- [x] Item yang ditolak `SympsonHetter` ditandai tidak valid hanya untuk sesi berjalan, tidak memengaruhi sesi/peserta lain (state terisolasi per slice `valid_items` yang diberikan pemanggil, bukan `PersonState` -- lih. catatan "Update" poin 2)
+- [x] Error dikembalikan (bukan panic) saat seluruh kandidat tersaring habis
+- [x] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(ExposureControlDebug)` mencatat setiap kandidat yang dicoba (termasuk yang ditolak) dan tidak mengubah item yang dikembalikan
 
 ### Checklist Integration Test
-- [ ] Fixture R: sesi dengan `exposure` mode `'SH'` (RNG seed tetap direplikasi setepat mungkin) → bandingkan pola penerimaan/penolakan item vs R secara statistik (distribusi kemunculan item lintas banyak simulasi peserta, bukan kecocokan RNG stream 1:1 karena RNG R vs Rust berbeda)
-- [ ] Fixture R: sesi dengan mode `'sample'` (`exposure[posisi]=3`) → bandingkan bahwa item terpilih selalu berasal dari top-3 kandidat kriteria pada posisi tsb (Rust vs R, dicek sebagai himpunan valid, bukan kecocokan item persis karena keduanya random)
-- [ ] Uji integrasi dengan Fase 2: exposure control mengonsumsi hasil kriteria (`crit` values) dengan benar sebagai input ranking
+- [x] Fixture R: sesi dengan `exposure` mode `'SH'` (300 peserta sungguhan, `tests/fixtures/generate_r_fixtures_exposure_control.R`) → bandingkan properti statistik yang EXACT secara matematis (item `exposure=0.0` tidak pernah lolos: 0/1800 di R, 0/N independen di Rust; `start_item` selalu terpilih tepat `n_sim` kali), bukan kecocokan RNG stream 1:1 (RNG R vs Rust berbeda) -- `tests/integration_exposure_control.rs::sh_simulation_zero_exposure_item_never_selected_and_start_item_always_selected`
+- [x] Fixture R: sesi dengan mode `'sample'` (`exposure[posisi]=3`, satu sesi replay penuh) → bandingkan bahwa item terpilih R selalu berasal dari top-3 kandidat kriteria Rust (dihitung ulang via `rank_candidates` pada `theta` yang sama persis dgn R di tiap langkah), dicek sebagai himpunan valid, bukan kecocokan item persis -- `tests/integration_exposure_control.rs::sample_replay_chosen_item_is_always_within_top_n_by_criterion`
+- [x] Uji integrasi dengan Fase 2: exposure control mengonsumsi hasil kriteria (`crit` values) dengan benar sebagai input ranking -- dibuktikan lewat kedua test di atas (keduanya memanggil `rank_candidates()` lalu `select_with_exposure()` end-to-end), plus deteksi mode dibandingkan EKSAK terhadap `Design$initialize()` R sungguhan (`mode_detection_matches_r_design_initialize`)
 
 ### Checklist Example Script
 
@@ -1021,8 +1063,8 @@ mode yang didukung `mirtCAT`: Sympson–Hetter (`'SH'`) dan top-*n* random
 > menggabungkan keduanya sekaligus dalam satu file — sama seperti pola yang
 > dipakai Fase 2/3/4.
 
-- [ ] `examples/05_exposure_control_sympson_hetter.rs` — simulasi 1000 peserta sintetis dengan mode `SympsonHetter`, cetak distribusi frekuensi kemunculan tiap item vs baseline tanpa exposure control (bukti visual distribusi meratakan), termasuk contoh fallback paksa-terima saat kandidat tersisa satu
-- [ ] `examples/05_exposure_control_randomesque.rs` — simulasi 1000 peserta sintetis dengan mode `Randomesque`, bandingkan `exposure=1` (deterministik, selalu kandidat terbaik) vs `exposure=3` (distribusi pilihan mencakup 3 kandidat teratas) vs baseline tanpa exposure control
+- [x] `examples/05_exposure_control_sympson_hetter.rs` — simulasi 1000 peserta sintetis dengan mode `SympsonHetter`, cetak distribusi frekuensi kemunculan tiap item vs baseline tanpa exposure control (bukti visual distribusi meratakan)
+- [x] `examples/05_exposure_control_randomesque.rs` — simulasi 1000 peserta sintetis dengan mode `Randomesque`, bandingkan `exposure=1` (deterministik, selalu kandidat terbaik, identik baseline) vs `exposure=3` (distribusi pilihan mencakup 3 kandidat teratas) vs baseline tanpa exposure control
 
 ### Checklist Dokumentasi
 
@@ -1032,17 +1074,17 @@ mode yang didukung `mirtCAT`: Sympson–Hetter (`'SH'`) dan top-*n* random
 > item, error kandidat habis, debug trace, interaksi dengan content
 > balancing) yang tidak spesifik ke satu mode.
 
-- [ ] `docs/teori/05-exposure-control-overview.md` — deteksi mode otomatis via `from_values()` (rentang nilai `[0,1]` vs `>1`), perbedaan pengindeksan kritis (`Randomesque` per posisi penyajian vs `SympsonHetter` per ID item), error eksplisit saat kandidat habis, referensi tinjauan Georgiadou et al. (2007), peta ke dokumen per-mode di bawah
-- [ ] `docs/teori/05-exposure-control-sympson-hetter.md` — algoritma loop terima/tolak Sympson–Hetter, fallback paksa-terima, referensi Sympson & Hetter (1985)
-- [ ] `docs/teori/05-exposure-control-randomesque.md` — algoritma top-*n* random (randomesque), referensi McBride & Martin (1983)
-- [ ] `docs/panduan/05-exposure-control-overview.md` — cara memilih mode & mengkalibrasi nilai `exposure` secara umum, peringatan risiko kehabisan item saat digabung content balancing, peta ke panduan per-mode
-- [ ] `docs/panduan/05-exposure-control-sympson-hetter.md`
-- [ ] `docs/panduan/05-exposure-control-randomesque.md`
+- [x] `docs/teori/05-exposure-control-overview.md` — deteksi mode otomatis via `from_values()` (rentang nilai `[0,1]` vs `>1`), perbedaan pengindeksan kritis (`Randomesque` per posisi penyajian vs `SympsonHetter` per ID item), `seq`/`random` bypass exposure control, error eksplisit saat kandidat habis, referensi tinjauan Georgiadou et al. (2007), peta ke dokumen per-mode di bawah
+- [x] `docs/teori/05-exposure-control-sympson-hetter.md` — algoritma loop terima/tolak Sympson–Hetter, fallback paksa-terima, referensi Sympson & Hetter (1985)
+- [x] `docs/teori/05-exposure-control-randomesque.md` — algoritma top-*n* random (randomesque), referensi McBride & Martin (1983)
+- [x] `docs/panduan/05-exposure-control-overview.md` — cara memilih mode & mengkalibrasi nilai `exposure` secara umum, peringatan risiko kehabisan item saat digabung content balancing, peta ke panduan per-mode
+- [x] `docs/panduan/05-exposure-control-sympson-hetter.md`
+- [x] `docs/panduan/05-exposure-control-randomesque.md`
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine exposure_control` hijau
-- [ ] Parity statistik distribusi eksposur dengan fixture R terverifikasi
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test` (205 test, termasuk `exposure_control`) & `cargo clippy --all-targets -- -D warnings` hijau; `cargo fmt --check` bersih untuk seluruh file yang disentuh Fase 5 (`src/exposure_control/*`, `src/item_selection/mod.rs`, `src/lib.rs`, `tests/integration_exposure_control.rs`, `examples/05_*.rs`) -- sisa diff `cargo fmt --check` di file Fase 3/4 lama sudah ada SEBELUM Fase 5, di luar scope perubahan ini
+- [x] Parity statistik distribusi eksposur dengan fixture R terverifikasi (lih. Checklist Integration Test)
 
 ---
 

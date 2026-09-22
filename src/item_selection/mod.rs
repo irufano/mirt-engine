@@ -310,6 +310,110 @@ pub struct ItemSelectionDebug {
     pub info_after: Option<InfoMatrix>,
 }
 
+/// Hitung nilai kriteria mentah tiap `candidates` sesuai `config.criterion`,
+/// tanpa memilih argmax-nya -- dipakai `select_next_item` (yang menambah
+/// argmax + snapshot info di atasnya) dan `exposure_control::select_with_exposure`
+/// (Fase 5, yang butuh ranking penuh semua kandidat, bukan cuma item
+/// terbaik).
+///
+/// **`Criterion::Seq`/`Random` tidak punya nilai kriteria** -- di `mirtCAT`,
+/// `findNextCATItem()` `return()` untuk keduanya SEBELUM `crit` dihitung
+/// sama sekali (lih. source `findNextCATItem.R`), jadi exposure control pun
+/// tidak pernah diterapkan untuk kriteria ini di R. Fungsi ini meniru itu
+/// persis: error `InvalidParameter`, bukan `Vec` kosong (kosong bisa
+/// disalahartikan "semua kandidat exhausted").
+///
+/// Error bila `candidates` kosong, ada index kandidat di luar `bank`, atau
+/// panjang `weights` (default maupun manual) tidak cocok `nfact`.
+pub fn rank_candidates(
+    config: &SelectionConfig,
+    candidates: &[ItemIndex],
+    person: &PersonState,
+    bank: &ItemBank,
+    group: &GroupParams,
+) -> Result<Vec<(ItemIndex, f64)>, MirtCatError> {
+    if candidates.is_empty() {
+        return Err(MirtCatError::InvalidParameter(
+            "rank_candidates: candidates kosong -- tidak ada item tersisa untuk dipilih".into(),
+        ));
+    }
+
+    let get_item = |idx: ItemIndex| -> Result<&dyn ItemResponseModel, MirtCatError> {
+        bank.item(idx).ok_or_else(|| {
+            MirtCatError::InvalidParameter(format!(
+                "rank_candidates: index item {idx} di luar jangkauan ItemBank"
+            ))
+        })
+    };
+
+    match config.criterion {
+        Criterion::Seq | Criterion::Random => Err(MirtCatError::InvalidParameter(
+            "rank_candidates: Seq/Random tidak punya nilai kriteria -- di mirtCAT keduanya \
+             dikembalikan sebelum `crit` dihitung, jadi exposure control tidak berlaku"
+                .into(),
+        )),
+        Criterion::Kl { delta } | Criterion::KlN { delta } => {
+            let effective_delta = if matches!(config.criterion, Criterion::KlN { .. }) {
+                criteria::kl::scaled_delta(delta, person.n_answered())
+            } else {
+                delta
+            };
+            let mut scores = Vec::with_capacity(candidates.len());
+            for &idx in candidates {
+                let item = get_item(idx)?;
+                let s = criteria::kl::score(item, person.theta(), effective_delta)?;
+                scores.push((idx, s));
+            }
+            Ok(scores)
+        }
+        Criterion::DRule { prior }
+        | Criterion::TRule { prior }
+        | Criterion::ARule { prior }
+        | Criterion::ERule { prior }
+        | Criterion::WRule { prior } => {
+            let nfact = person.nfact();
+            let weights = match &config.weights {
+                Some(w) => {
+                    if w.len() != nfact {
+                        return Err(MirtCatError::DimensionMismatch {
+                            expected: nfact,
+                            actual: w.len(),
+                            context: "rank_candidates: weights",
+                        });
+                    }
+                    w.clone()
+                }
+                None => vec![1.0; nfact],
+            };
+            let prior_info = if prior {
+                Some(group.gcov().inverse()?)
+            } else {
+                None
+            };
+            let info_before = person.info_thetas(bank)?;
+
+            let mut scores = Vec::with_capacity(candidates.len());
+            for &idx in candidates {
+                let item = get_item(idx)?;
+                let mut total = info_before.clone() + item.information(person.theta())?;
+                if let Some(pinfo) = &prior_info {
+                    total += pinfo;
+                }
+                let s = match config.criterion {
+                    Criterion::DRule { .. } => criteria::d_rule::score(&total),
+                    Criterion::TRule { .. } => criteria::t_rule::score(&total, &weights)?,
+                    Criterion::ARule { .. } => criteria::a_rule::score(&total, &weights)?,
+                    Criterion::ERule { .. } => criteria::e_rule::score(&total),
+                    Criterion::WRule { .. } => criteria::w_rule::score(&total, &weights)?,
+                    _ => unreachable!("cabang match sudah dibatasi ke D/T/A/E/W-rule"),
+                };
+                scores.push((idx, s));
+            }
+            Ok(scores)
+        }
+    }
+}
+
 /// Pilih item selanjutnya dari `candidates` (index `ItemBank` yang belum
 /// dijawab) sesuai `config.criterion`.
 ///
@@ -335,14 +439,6 @@ pub fn select_next_item(
         ));
     }
 
-    let get_item = |idx: ItemIndex| -> Result<&dyn ItemResponseModel, MirtCatError> {
-        bank.item(idx).ok_or_else(|| {
-            MirtCatError::InvalidParameter(format!(
-                "select_next_item: index item {idx} di luar jangkauan ItemBank"
-            ))
-        })
-    };
-
     match config.criterion {
         Criterion::Seq => {
             let chosen = criteria::seq::select(candidates);
@@ -364,18 +460,8 @@ pub fn select_next_item(
             });
             Ok((chosen, debug))
         }
-        Criterion::Kl { delta } | Criterion::KlN { delta } => {
-            let effective_delta = if matches!(config.criterion, Criterion::KlN { .. }) {
-                criteria::kl::scaled_delta(delta, person.n_answered())
-            } else {
-                delta
-            };
-            let mut scores = Vec::with_capacity(candidates.len());
-            for &idx in candidates {
-                let item = get_item(idx)?;
-                let s = criteria::kl::score(item, person.theta(), effective_delta)?;
-                scores.push((idx, s));
-            }
+        Criterion::Kl { .. } | Criterion::KlN { .. } => {
+            let scores = rank_candidates(config, candidates, person, bank, group)?;
             let chosen = argmax(&scores)?;
             let debug = config.debug.then_some(ItemSelectionDebug {
                 candidate_scores: scores,
@@ -390,53 +476,26 @@ pub fn select_next_item(
         | Criterion::ARule { prior }
         | Criterion::ERule { prior }
         | Criterion::WRule { prior } => {
-            let nfact = person.nfact();
-            let weights = match &config.weights {
-                Some(w) => {
-                    if w.len() != nfact {
-                        return Err(MirtCatError::DimensionMismatch {
-                            expected: nfact,
-                            actual: w.len(),
-                            context: "select_next_item: weights",
-                        });
-                    }
-                    w.clone()
-                }
-                None => vec![1.0; nfact],
-            };
-            let prior_info = if prior {
-                Some(group.gcov().inverse()?)
-            } else {
-                None
-            };
-            let info_before = person.info_thetas(bank)?;
-
-            let candidate_total = |idx: ItemIndex| -> Result<InfoMatrix, MirtCatError> {
-                let item = get_item(idx)?;
-                let mut total = info_before.clone() + item.information(person.theta())?;
-                if let Some(pinfo) = &prior_info {
-                    total += pinfo;
-                }
-                Ok(total)
-            };
-
-            let mut scores = Vec::with_capacity(candidates.len());
-            for &idx in candidates {
-                let total = candidate_total(idx)?;
-                let s = match config.criterion {
-                    Criterion::DRule { .. } => criteria::d_rule::score(&total),
-                    Criterion::TRule { .. } => criteria::t_rule::score(&total, &weights)?,
-                    Criterion::ARule { .. } => criteria::a_rule::score(&total, &weights)?,
-                    Criterion::ERule { .. } => criteria::e_rule::score(&total),
-                    Criterion::WRule { .. } => criteria::w_rule::score(&total, &weights)?,
-                    _ => unreachable!("cabang match sudah dibatasi ke D/T/A/E/W-rule"),
-                };
-                scores.push((idx, s));
-            }
+            let scores = rank_candidates(config, candidates, person, bank, group)?;
             let chosen = argmax(&scores)?;
 
             let debug = if config.debug {
-                let info_after = candidate_total(chosen)?;
+                let prior_info = if prior {
+                    Some(group.gcov().inverse()?)
+                } else {
+                    None
+                };
+                let info_before = person.info_thetas(bank)?;
+                let chosen_item = bank.item(chosen).ok_or_else(|| {
+                    MirtCatError::InvalidParameter(format!(
+                        "select_next_item: index item {chosen} di luar jangkauan ItemBank"
+                    ))
+                })?;
+                let mut info_after =
+                    info_before.clone() + chosen_item.information(person.theta())?;
+                if let Some(pinfo) = &prior_info {
+                    info_after += pinfo;
+                }
                 Some(ItemSelectionDebug {
                     candidate_scores: scores,
                     chosen,
@@ -453,8 +512,11 @@ pub fn select_next_item(
 
 /// Index dengan nilai kriteria maksimum; pada seri (tie), pilih yang
 /// **pertama muncul** — sama seperti `which.max()` di R yang dipakai
-/// `findNextCATItem.R` (`index[which.max(crit)][1L]`).
-fn argmax(scores: &[(ItemIndex, f64)]) -> Result<ItemIndex, MirtCatError> {
+/// `findNextCATItem.R` (`index[which.max(crit)][1L]`). `pub(crate)` --
+/// dipakai ulang oleh `exposure_control::sympson_hetter` (Fase 5), yang
+/// mereplikasi pola pemilihan `which.max` yang sama persis di dalam loop
+/// terima/tolaknya.
+pub(crate) fn argmax(scores: &[(ItemIndex, f64)]) -> Result<ItemIndex, MirtCatError> {
     scores
         .iter()
         .copied()
@@ -606,14 +668,20 @@ mod tests {
         assert!(person.previous_theta().is_none());
 
         person.set_theta(ThetaVector::from_vec(vec![0.5, -0.2]));
-        assert_eq!(person.previous_theta(), Some(&ThetaVector::from_vec(vec![0.0, 0.0])));
+        assert_eq!(
+            person.previous_theta(),
+            Some(&ThetaVector::from_vec(vec![0.0, 0.0]))
+        );
         assert_eq!(person.theta(), &ThetaVector::from_vec(vec![0.5, -0.2]));
 
         person.set_estimate(
             ThetaVector::from_vec(vec![0.8, -0.1]),
             SEVector::from_vec(vec![0.3, 0.3]),
         );
-        assert_eq!(person.previous_theta(), Some(&ThetaVector::from_vec(vec![0.5, -0.2])));
+        assert_eq!(
+            person.previous_theta(),
+            Some(&ThetaVector::from_vec(vec![0.5, -0.2]))
+        );
         assert_eq!(person.theta(), &ThetaVector::from_vec(vec![0.8, -0.1]));
     }
 
