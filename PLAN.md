@@ -263,7 +263,7 @@ sebelum fase berikutnya dimulai.
 |---|---|---|
 | 0 | Fondasi Proyek & Model IRT Dasar | ✅ Selesai |
 | 1 | Theta Awal | ✅ Selesai |
-| 2 | Algoritma Pemilihan Item | ⬜ Belum Dimulai |
+| 2 | Algoritma Pemilihan Item | ✅ Selesai |
 | 3 | Algoritma Estimasi Kemampuan | ⬜ Belum Dimulai |
 | 4 | Stopping Rule | ⬜ Belum Dimulai |
 | 5 | Exposure Control | ⬜ Belum Dimulai |
@@ -450,7 +450,43 @@ pertama disajikan, sesuai perilaku `mirtCAT` untuk `nfact > 1`.
 
 ## Fase 2 — Algoritma Pemilihan Item (Item Selection) Khusus MCAT
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
+
+> **Update (2026-09-22)**: formula tiap kriteria diverifikasi numerik
+> langsung terhadap `mirtCAT` terpasang (R 4.6.1/mirtCAT 1.14) lewat
+> `computeCriteria()` pada item bank sintetis (bukan hanya pembacaan
+> source) — dua temuan penting yang **tidak** tersirat eksplisit di
+> rencana awal fase ini:
+> 1. **`Arule`/`APrule` butuh pseudo-invers (SVD), bukan invers biasa** —
+>    info Fisher satu item dikotomus tunggal di `nfact > 1` selalu rank 1,
+>    umum singular sebelum item pertama dijawab; `mirtCAT` menanganinya
+>    lewat rutin aljabar linear yang robust terhadap singularitas, hasil
+>    numeriknya cocok presisi tinggi dengan `InfoMatrix::pseudo_inverse`
+>    (nalgebra, via SVD). Lih. `docs/teori/02-item-selection-a-rule.md`.
+> 2. **`info_thetas` dihitung ULANG dari nol tiap dipanggil, bukan
+>    diakumulasi bertahap** — dikonfirmasi dari source `Person$Update.info_mats`
+>    (`mirtCAT`): info tiap item terjawab selalu dievaluasi di `theta`
+>    **terbaru**, bukan "dibekukan" di `theta` saat item itu dijawab.
+>    `PersonState` di Rust karena itu menyimpan daftar index item terjawab
+>    (`answered_items`), bukan matriks akumulasi sebagai field — metode
+>    `info_thetas(&bank)` menghitung ulang lewat `irt::cumulative_information`
+>    (Fase 0) tiap dipanggil. Ini deviasi dari sketsa "Desain Modul Rust"
+>    awal (`update_info_matrix()` inkremental) — lih. §"Desain Modul Rust"
+>    di bawah untuk desain final.
+>
+> Deviasi desain lain (dengan alasan, lih. juga commit/PR terkait):
+> tidak ada `MirtCatError::InvalidCriterionForMultidimensional` (enum
+> `Criterion` tertutup sudah mencegah konstruksi kriteria tidak valid di
+> compile time — validasi runtime jadi tidak pernah bisa gagal, jadi tidak
+> ditambahkan); `select_next_item()` menerima parameter tambahan `group:
+> &GroupParams` (untuk `*Prule`) dan `rng: &mut impl rand::Rng` (untuk
+> `Random`, supaya testable/reproducible) di atas sketsa awal.
+>
+> `cargo test` (86 test hijau: 76 unit + 4 integration_irt + 4
+> integration_initial_theta + 2 integration_item_selection) & `cargo
+> clippy --all-targets -- -D warnings` hijau. Fixture R
+> (`tests/fixtures/item_selection.json`) dihasilkan sungguhan lewat
+> `Rscript tests/fixtures/generate_r_fixtures_item_selection.R`.
 
 ### Tujuan
 Mengimplementasikan **hanya** kriteria seleksi item yang valid untuk
@@ -477,7 +513,10 @@ tidak didukung (`MI`, `MEPV`, `MLWI`, `MPWI`, `MEI`, seluruh `IKL*`).
     asimtotik ≈ maksimalkan negatifnya).
   - `Erule`: eigenvalue **minimum** matriks informasi (mencegah satu dimensi
     terabaikan).
-  - `Wrule`: kombinasi berbobot kustom (`weights`).
+  - `Wrule`: kombinasi berbobot kustom (`weights`) — bentuk kuadratik
+    penuh `weights' * info * weights` (termasuk off-diagonal), **beda**
+    dari `Trule` yang cuma trace diagonal berbobot; dikonfirmasi numerik
+    terhadap `mirtCAT::computeCriteria`.
   - Varian `*Prule` menambahkan **informasi prior** (`inverse(gcov)`) ke
     matriks informasi sebelum dievaluasi (pendekatan Bayesian).
   - `weights` dipakai oleh `Trule`/`Arule`/`Wrule` (+varian P), **tidak**
@@ -508,36 +547,40 @@ tidak didukung (`MI`, `MEPV`, `MLWI`, `MPWI`, `MEI`, seluruh `IKL*`).
   *Journal of Statistical Software*, 71(5), 1–39. doi:10.18637/jss.v071.i05
 
 ### Desain Modul Rust
-- `item_selection::Criterion` — enum tertutup: `Seq`, `Random`, `Kl { delta: f64 }`, `KlN { delta: f64 }`, `DRule { prior: bool }`, `TRule { prior: bool }`, `ARule { prior: bool }`, `ERule { prior: bool }`, `WRule { prior: bool }`.
-- `item_selection::SelectionConfig { criterion: Criterion, weights: Option<Vec<f64>>, debug: bool }` — konstruktor memvalidasi `nfact > 1` ⇒ kriteria harus anggota himpunan valid di atas (mengembalikan `MirtCatError::InvalidCriterionForMultidimensional`). `debug` default `false` (prinsip desain #7).
-- `item_selection::ItemSelectionDebug { candidate_scores: Vec<(ItemIndex, f64)>, chosen: ItemIndex, info_before: Option<InfoMatrix>, info_after: Option<InfoMatrix> }` — nilai kriteria mentah tiap kandidat (berguna mengapa item tertentu terpilih), dan snapshot `info_thetas` sebelum/sesudah untuk kriteria D/T/A/E/W-rule (`None` untuk `seq`/`random`/`KL` yang tidak memakainya).
-- `item_selection::select_next_item(config, candidates, person_state, bank) -> (ItemIndex, Option<ItemSelectionDebug>)`.
-- `info_thetas` kumulatif disimpan di `PersonState` (didefinisikan di sini, dipakai lintas fase) dan diperbarui via `update_info_matrix()` — **hanya** dipanggil bila kriteria termasuk D/T/A/E/W-rule (menghindari kerja sia-sia untuk `seq`/`random`/`KL`).
+
+> Diperbarui dari sketsa awal sesuai implementasi final — lih. catatan
+> "Update" di atas untuk alasan tiap deviasi.
+
+- `item_selection::Criterion` — enum tertutup: `Seq`, `Random`, `Kl { delta: f64 }`, `KlN { delta: f64 }`, `DRule { prior: bool }`, `TRule { prior: bool }`, `ARule { prior: bool }`, `ERule { prior: bool }`, `WRule { prior: bool }`. `Default` → `Seq` (mengikuti default `criteria = "seq"` `mirtCAT`).
+- `item_selection::SelectionConfig { criterion: Criterion, weights: Option<Vec<f64>>, debug: bool }` — `SelectionConfig::new(criterion, weights, nfact, debug) -> Result<Self, MirtCatError>` memvalidasi panjang `weights` (bila diberikan) terhadap `nfact` (`DimensionMismatch` bila tidak cocok). Validasi "kriteria tidak valid untuk `nfact > 1`" terjadi di **compile time** lewat enum tertutup, bukan lewat error runtime terpisah. `debug` default `false` (prinsip desain #7).
+- `item_selection::PersonState { theta: ThetaVector, answered_items: Vec<ItemIndex> }` — **tidak** menyimpan matriks akumulasi sebagai field. `record_answer(item_index)` cuma mencatat index; `info_thetas(&ItemBank) -> Result<InfoMatrix, MirtCatError>` menghitung ulang dari `answered_items` di `theta` saat ini lewat `irt::cumulative_information` (Fase 0) tiap dipanggil — meniru `Person$Update.info_mats` `mirtCAT` (lih. catatan "Update").
+- `item_selection::ItemSelectionDebug { candidate_scores: Vec<(ItemIndex, f64)>, chosen: ItemIndex, info_before: Option<InfoMatrix>, info_after: Option<InfoMatrix> }` — nilai kriteria mentah tiap kandidat, dan snapshot `info_thetas` sebelum/sesudah untuk kriteria D/T/A/E/W-rule (`None` untuk `seq`/`random`/`KL` yang tidak memakainya).
+- `item_selection::select_next_item(config: &SelectionConfig, candidates: &[ItemIndex], person: &PersonState, bank: &ItemBank, group: &GroupParams, rng: &mut impl Rng) -> Result<(ItemIndex, Option<ItemSelectionDebug>), MirtCatError>` — `group` dipakai varian `*Prule` (`inverse(gcov)`), `rng` dipakai `Random`; keduanya parameter tambahan di atas sketsa awal (lih. catatan "Update").
 
 ### Checklist Implementasi
-- [ ] `item_selection::Criterion` (enum) + validasi konstruksi untuk `nfact > 1`
-- [ ] `PersonState::info_thetas` (matriks kumulatif) + `update_info_matrix()`
-- [ ] `criteria/seq.rs`, `criteria/random.rs`
-- [ ] `criteria/kl.rs` (KL & KLn, termasuk skala `delta * sqrt(n_answered)`)
-- [ ] `criteria/d_rule.rs`, `t_rule.rs`, `a_rule.rs`, `e_rule.rs`, `w_rule.rs` (masing-masing + varian `prior: true` untuk `*Prule`)
-- [ ] `select_next_item()` — dispatcher yang memanggil kriteria terpilih atas kandidat item yang belum dijawab
-- [ ] Dukungan debug trace opsional (`SelectionConfig::debug`, default `false`) → `Option<ItemSelectionDebug>` berisi nilai kriteria tiap kandidat + snapshot `info_thetas`
+- [x] `item_selection::Criterion` (enum) — validasi "kriteria tidak valid untuk `nfact > 1`" terjadi lewat enum tertutup (compile time), bukan validasi runtime terpisah (lih. catatan "Update")
+- [x] `PersonState::info_thetas(&ItemBank)` (dihitung ulang dari `answered_items`, bukan matriks kumulatif field — lih. catatan "Update")
+- [x] `criteria/seq.rs`, `criteria/random.rs`
+- [x] `criteria/kl.rs` (KL & KLn, termasuk skala `delta * sqrt(n_answered)`)
+- [x] `criteria/d_rule.rs`, `t_rule.rs`, `a_rule.rs`, `e_rule.rs`, `w_rule.rs` (masing-masing + varian `prior: true` untuk `*Prule`)
+- [x] `select_next_item()` — dispatcher yang memanggil kriteria terpilih atas kandidat item yang belum dijawab
+- [x] Dukungan debug trace opsional (`SelectionConfig::debug`, default `false`) → `Option<ItemSelectionDebug>` berisi nilai kriteria tiap kandidat + snapshot `info_thetas`
 
 ### Checklist Unit Test
-- [ ] Validasi konstruksi: kriteria tidak valid untuk `nfact > 1` (mis. representasi `MEPV`/`MLWI` bila dimodelkan) menghasilkan error saat konfigurasi
-- [ ] `Drule` — determinan matriks informasi meningkat monoton saat item dengan informasi tinggi ditambahkan (kasus sintetis 2D)
-- [ ] `Trule` tanpa/`dengan` bobot — hasil berbeda sesuai bobot yang diberikan
-- [ ] `Arule` — nilai kriteria = negatif trace invers matriks informasi, diverifikasi terhadap matriks 2×2 yang diketahui inversnya
-- [ ] `Erule` — memilih item yang memaksimalkan eigenvalue minimum pada kasus 2 item dengan info matrix kontras (satu "kuat" di dimensi 1, satu di dimensi 2)
-- [ ] `Wrule` — kombinasi berbobot sesuai `weights` custom
-- [ ] `KL`/`KLn` — nilai kriteria simetris terhadap tanda `delta`, dan `KLn` menghasilkan interval lebih lebar seiring `n_answered` bertambah
-- [ ] Varian `*Prule` menghasilkan nilai berbeda dari non-prior ketika `gcov` non-identitas
-- [ ] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(ItemSelectionDebug)` memuat nilai kriteria seluruh kandidat (bukan cuma yang terpilih) dan tidak mengubah item yang dikembalikan
+- [x] Validasi konstruksi kriteria tidak valid untuk `nfact > 1`: dijamin oleh sistem tipe (enum `Criterion` tertutup, `MI`/`MEPV`/`MLWI`/`MPWI`/`MEI`/`IKL*` mustahil dikonstruksi) — tidak ada test runtime untuk sesuatu yang mustahil terjadi; `SelectionConfig::new` diuji untuk validasi nyata yang memang bisa gagal (`weights.len() != nfact`)
+- [x] `Drule` — determinan matriks informasi meningkat monoton saat item dengan informasi tinggi ditambahkan (kasus sintetis 2D)
+- [x] `Trule` tanpa/dengan bobot — hasil berbeda sesuai bobot yang diberikan
+- [x] `Arule` — nilai kriteria = negatif trace **pseudo-invers** (bukan invers biasa — lih. catatan "Update") matriks informasi, diverifikasi terhadap matriks full-rank yang inversnya diketahui manual + kasus rank-defisien (nilai referensi dari verifikasi numerik terhadap `mirtCAT`)
+- [x] `Erule` — memilih item yang memaksimalkan eigenvalue minimum pada kasus kandidat dengan info matrix kontras (satu "kuat" di dimensi 1, satu di dimensi 2), termasuk pembuktian info kumulatif (bukan cuma info kandidat sendiri) yang dipakai
+- [x] `Wrule` — kombinasi berbobot sesuai `weights` custom, dibuktikan beda dari `Trule` (bentuk kuadratik vs trace berbobot) untuk matriks ber-off-diagonal
+- [x] `KL`/`KLn` — nilai `KL(delta=0) = 0` & `KL >= 0` (Gibbs' inequality; **tidak** simetris terhadap tanda `delta` secara umum — direvisi dari asumsi awal setelah ketahuan salah lewat test yang gagal), dan `KLn` menghasilkan interval lebih lebar seiring `n_answered` bertambah
+- [x] Varian `*Prule` menghasilkan nilai berbeda dari non-prior ketika `gcov` non-identitas
+- [x] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(ItemSelectionDebug)` memuat nilai kriteria seluruh kandidat (bukan cuma yang terpilih) dan tidak mengubah item yang dikembalikan
 
 ### Checklist Integration Test
-- [ ] Fixture R: skenario CAT 3 dimensi, urutan item terjawab tetap (seed tetap), untuk tiap kriteria (`Drule`,`Trule`,`Arule`,`Erule`,`Wrule`,`KL`,`KLn` + varian `P`) — catat item yang dipilih tiap langkah dan nilai kriteria mentah dari `mirtCAT`
-- [ ] Bandingkan urutan item terpilih & nilai kriteria Rust vs R (toleransi numerik pada nilai kriteria; kecocokan eksak pada indeks item terpilih)
-- [ ] Test `info_thetas` kumulatif Rust vs R pada tiap tahap (memastikan akumulasi matriks informasi benar antar-item)
+- [x] Fixture R: item bank 3D tetap (10 item, `gcov` non-diagonal), untuk tiap kriteria (`Drule`,`Trule`,`Arule`,`Erule`,`Wrule`,`KL`,`KLn` + varian `P`) — dua jenis data: (1) nilai kriteria mentah seluruh kandidat di 0 item terjawab (`computeCriteria()`), (2) urutan item teradministrasi + `thetas_history` dari simulasi `mirtCAT()` end-to-end 6 langkah (`tests/fixtures/generate_r_fixtures_item_selection.R`, dijalankan sungguhan)
+- [x] Bandingkan nilai kriteria mentah Rust vs R (toleransi numerik) & argmax-nya — kecuali `Drule`/`Erule` tanpa prior di 0 item terjawab, yang secara matematis degenerate (info 1 item dikotomus selalu rank 1 < `nfact`, det/eigenvalue-min persis 0 untuk semua kandidat — argmax jadi noise floating-point, bukan sinyal; nilainya sendiri tetap dibandingkan & cocok). `DPrule`/`EPrule` (full rank berkat prior) tidak kena masalah ini
+- [x] Replay urutan item lengkap: inject `theta` R persis tiap langkah (estimasi ulang Fase 3 belum ada), verifikasi item terpilih Rust identik dengan R di tiap langkah (kecuali langkah pertama, yang di `mirtCAT` sungguhan selalu `start_item` paksa, bukan hasil kriteria — ditemukan lewat inspeksi `findNextCATItem()`, bukan asumsi) — ini sekaligus membuktikan `info_thetas` terakumulasi/dihitung ulang dengan benar antar-item
 
 ### Checklist Example Script
 
@@ -549,14 +592,14 @@ tidak didukung (`MI`, `MEPV`, `MLWI`, `MPWI`, `MEI`, seluruh `IKL*`).
 > kepraktisan, tapi karena memang satu algoritma dengan skala `delta`
 > berbeda).
 
-- [ ] `examples/02_item_selection_seq.rs` — urutan `seq` (item ke-n = item bank ke-n), tanpa kriteria informasi
-- [ ] `examples/02_item_selection_random.rs` — pemilihan `random` di antara kandidat tersisa (seed tetap untuk reproducibility)
-- [ ] `examples/02_item_selection_kl.rs` — demonstrasi KL vs KLn, cetak bagaimana `delta` efektif melebar seiring item bertambah
-- [ ] `examples/02_item_selection_d_rule.rs` — simulasi 5 item pertama dipilih via `Drule` (determinan matriks informasi) pada item bank 2D, + varian `DPrule`
-- [ ] `examples/02_item_selection_t_rule.rs` — `Trule` tanpa/dengan `weights`, + varian `TPrule`
-- [ ] `examples/02_item_selection_a_rule.rs` — `Arule` (negatif trace invers), + varian `APrule`
-- [ ] `examples/02_item_selection_e_rule.rs` — `Erule` (eigenvalue minimum), + varian `EPrule`
-- [ ] `examples/02_item_selection_w_rule.rs` — `Wrule` dengan `weights` custom, + varian `WPrule`
+- [x] `examples/02_item_selection_seq.rs` — urutan `seq` (item ke-n = item bank ke-n), tanpa kriteria informasi
+- [x] `examples/02_item_selection_random.rs` — pemilihan `random` di antara kandidat tersisa (seed tetap untuk reproducibility)
+- [x] `examples/02_item_selection_kl.rs` — demonstrasi KL vs KLn, cetak bagaimana `delta` efektif melebar seiring item bertambah
+- [x] `examples/02_item_selection_d_rule.rs` — simulasi 5 item pertama dipilih via `Drule` (determinan matriks informasi) pada item bank 2D, + varian `DPrule`
+- [x] `examples/02_item_selection_t_rule.rs` — `Trule` tanpa/dengan `weights`, + varian `TPrule`
+- [x] `examples/02_item_selection_a_rule.rs` — `Arule` (negatif trace pseudo-invers), + varian `APrule`
+- [x] `examples/02_item_selection_e_rule.rs` — `Erule` (eigenvalue minimum), + varian `EPrule`
+- [x] `examples/02_item_selection_w_rule.rs` — `Wrule` dengan `weights` custom, + varian `WPrule`
 
 ### Checklist Dokumentasi
 
@@ -565,29 +608,29 @@ tidak didukung (`MI`, `MEPV`, `MLWI`, `MPWI`, `MEI`, seluruh `IKL*`).
 > konteks lintas-kriteria (validasi `nfact > 1`, `criteria_estimator`
 > otomatis) yang tidak spesifik ke satu algoritma.
 
-- [ ] `docs/teori/02-item-selection-overview.md` — kenapa `nfact > 1` membatasi pilihan kriteria (curse of dimensionality grid kuadratur), daftar kriteria valid, `criteria_estimator` otomatis (`ML` vs `MAP`), peta ke dokumen per-algoritma di bawah
-- [ ] `docs/teori/02-item-selection-seq.md` — `seq` sebagai baseline non-adaptif/kuesioner terurut
-- [ ] `docs/teori/02-item-selection-random.md` — `random` sebagai baseline exposure-neutral
-- [ ] `docs/teori/02-item-selection-kl.md` — rumus KL & KLn, dasar Chang & Ying (1996)
-- [ ] `docs/teori/02-item-selection-d-rule.md` — rumus `Drule`/`DPrule`, D-optimality (Segall, 1996)
-- [ ] `docs/teori/02-item-selection-t-rule.md` — rumus `Trule`/`TPrule`, trace berbobot
-- [ ] `docs/teori/02-item-selection-a-rule.md` — rumus `Arule`/`APrule`, minimum error-variance (van der Linden, 1999)
-- [ ] `docs/teori/02-item-selection-e-rule.md` — rumus `Erule`/`EPrule`, eigenvalue minimum
-- [ ] `docs/teori/02-item-selection-w-rule.md` — rumus `Wrule`/`WPrule`, kombinasi berbobot kustom
-- [ ] `docs/panduan/02-item-selection-overview.md` — cara memilih `Criterion` secara umum, kapan pakai `weights`, kapan pakai varian `*Prule`, peta ke panduan per-algoritma
-- [ ] `docs/panduan/02-item-selection-seq.md`
-- [ ] `docs/panduan/02-item-selection-random.md`
-- [ ] `docs/panduan/02-item-selection-kl.md`
-- [ ] `docs/panduan/02-item-selection-d-rule.md`
-- [ ] `docs/panduan/02-item-selection-t-rule.md`
-- [ ] `docs/panduan/02-item-selection-a-rule.md`
-- [ ] `docs/panduan/02-item-selection-e-rule.md`
-- [ ] `docs/panduan/02-item-selection-w-rule.md`
+- [x] `docs/teori/02-item-selection-overview.md` — kenapa `nfact > 1` membatasi pilihan kriteria (curse of dimensionality grid kuadratur), daftar kriteria valid, `criteria_estimator` otomatis (`ML` vs `MAP`), peta ke dokumen per-algoritma di bawah
+- [x] `docs/teori/02-item-selection-seq.md` — `seq` sebagai baseline non-adaptif/kuesioner terurut
+- [x] `docs/teori/02-item-selection-random.md` — `random` sebagai baseline exposure-neutral
+- [x] `docs/teori/02-item-selection-kl.md` — rumus KL & KLn, dasar Chang & Ying (1996)
+- [x] `docs/teori/02-item-selection-d-rule.md` — rumus `Drule`/`DPrule`, D-optimality (Segall, 1996)
+- [x] `docs/teori/02-item-selection-t-rule.md` — rumus `Trule`/`TPrule`, trace berbobot
+- [x] `docs/teori/02-item-selection-a-rule.md` — rumus `Arule`/`APrule`, minimum error-variance (van der Linden, 1999), termasuk temuan pseudo-invers
+- [x] `docs/teori/02-item-selection-e-rule.md` — rumus `Erule`/`EPrule`, eigenvalue minimum
+- [x] `docs/teori/02-item-selection-w-rule.md` — rumus `Wrule`/`WPrule`, kombinasi berbobot kustom
+- [x] `docs/panduan/02-item-selection-overview.md` — cara memilih `Criterion` secara umum, kapan pakai `weights`, kapan pakai varian `*Prule`, peta ke panduan per-algoritma
+- [x] `docs/panduan/02-item-selection-seq.md`
+- [x] `docs/panduan/02-item-selection-random.md`
+- [x] `docs/panduan/02-item-selection-kl.md`
+- [x] `docs/panduan/02-item-selection-d-rule.md`
+- [x] `docs/panduan/02-item-selection-t-rule.md`
+- [x] `docs/panduan/02-item-selection-a-rule.md`
+- [x] `docs/panduan/02-item-selection-e-rule.md`
+- [x] `docs/panduan/02-item-selection-w-rule.md`
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine item_selection` hijau
-- [ ] Parity urutan item & nilai kriteria dengan fixture R terverifikasi untuk seluruh kriteria yang didukung
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test` hijau (86 test: 76 unit `item_selection`/`theta` + 2 integration `integration_item_selection` + fixture lain tetap hijau), `cargo clippy --all-targets -- -D warnings` & `cargo fmt --check` bersih
+- [x] Parity urutan item & nilai kriteria dengan fixture R terverifikasi untuk seluruh kriteria yang didukung (dengan pengecualian yang didokumentasikan & dijustifikasi: argmax `Drule`/`Erule` non-prior di 0 item terjawab, dan langkah pertama urutan penuh yang di R selalu `start_item` paksa — keduanya bukan kegagalan implementasi, lih. Checklist Integration Test)
 
 ---
 

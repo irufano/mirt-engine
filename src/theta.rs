@@ -150,7 +150,8 @@ impl InfoMatrix {
         self.0.trace()
     }
 
-    /// Trace berbobot: `sum_i weights[i] * info[i,i]` — dipakai `Wrule`.
+    /// Trace berbobot: `sum_i weights[i] * info[i,i]` — dipakai `Trule`
+    /// (dan `Arule`, atas pseudo-invers matriks informasi).
     pub fn trace_weighted(&self, weights: &[f64]) -> Result<f64, MirtCatError> {
         if weights.len() != self.nfact() {
             return Err(MirtCatError::DimensionMismatch {
@@ -160,6 +161,28 @@ impl InfoMatrix {
             });
         }
         Ok((0..self.nfact()).map(|i| weights[i] * self.0[(i, i)]).sum())
+    }
+
+    /// Bentuk kuadratik `weights' * info * weights` (mencakup off-diagonal,
+    /// beda dengan `trace_weighted` yang hanya memakai diagonal) — dipakai
+    /// kriteria `Wrule`: informasi Fisher tentang skor komposit berbobot
+    /// `weights' * theta`.
+    pub fn quadratic_form(&self, weights: &[f64]) -> Result<f64, MirtCatError> {
+        if weights.len() != self.nfact() {
+            return Err(MirtCatError::DimensionMismatch {
+                expected: self.nfact(),
+                actual: weights.len(),
+                context: "InfoMatrix::quadratic_form",
+            });
+        }
+        let nfact = self.nfact();
+        let mut total = 0.0;
+        for i in 0..nfact {
+            for j in 0..nfact {
+                total += weights[i] * weights[j] * self.0[(i, j)];
+            }
+        }
+        Ok(total)
     }
 
     /// Invers matriks — dipakai kriteria `Arule` (negatif trace invers) dan
@@ -177,6 +200,24 @@ impl InfoMatrix {
             .iter()
             .cloned()
             .fold(f64::INFINITY, f64::min)
+    }
+
+    /// Pseudo-invers Moore-Penrose (via SVD) — dipakai kriteria `Arule`/
+    /// `APrule` (Fase 2), yang perlu robust terhadap matriks informasi
+    /// rank-defisien: info Fisher dari satu item dikotomus tunggal di ruang
+    /// `nfact > 1` selalu **rank 1** (outer product gradien), sehingga
+    /// singular dan tidak punya invers biasa — kasus umum sebelum item
+    /// pertama dijawab. `eps` adalah ambang singular value yang dianggap
+    /// nol; nilai singular di bawah `eps` diperlakukan sebagai arah yang
+    /// belum terinformasi (kontribusi nol ke pseudo-invers).
+    pub fn pseudo_inverse(&self, eps: f64) -> InfoMatrix {
+        let nfact = self.nfact();
+        InfoMatrix(
+            self.0
+                .clone()
+                .pseudo_inverse(eps)
+                .unwrap_or_else(|_| DMatrix::zeros(nfact, nfact)),
+        )
     }
 }
 
@@ -259,6 +300,20 @@ mod tests {
     }
 
     #[test]
+    fn info_matrix_quadratic_form_includes_off_diagonal() {
+        // Nilai referensi diverifikasi numerik terhadap mirtCAT::computeCriteria
+        // (Wrule) pada eksperimen desain Fase 2 (lih. PLAN.md).
+        let m =
+            InfoMatrix::from_matrix(DMatrix::from_row_slice(2, 2, &[10.0, 1.0, 1.0, 0.1])).unwrap();
+        let q = m.quadratic_form(&[0.5, 2.0]).unwrap();
+        assert_relative_eq!(q, 4.9, epsilon = 1e-9);
+        // Beda dari trace_weighted (yang mengabaikan off-diagonal).
+        let t = m.trace_weighted(&[0.5, 2.0]).unwrap();
+        assert!((q - t).abs() > 1e-6);
+        assert!(m.quadratic_form(&[1.0]).is_err());
+    }
+
+    #[test]
     fn info_matrix_add_assign_accumulates() {
         let mut acc = InfoMatrix::zeros(2);
         let a = InfoMatrix::from_matrix(DMatrix::from_diagonal(&DVector::from_vec(vec![1.0, 2.0])))
@@ -273,5 +328,34 @@ mod tests {
     fn non_square_matrix_is_rejected() {
         let m = DMatrix::from_row_slice(1, 2, &[1.0, 2.0]);
         assert!(InfoMatrix::from_matrix(m).is_err());
+    }
+
+    #[test]
+    fn pseudo_inverse_matches_regular_inverse_for_full_rank_matrix() {
+        let m = InfoMatrix::from_matrix(DMatrix::from_diagonal(&DVector::from_vec(vec![2.0, 8.0])))
+            .unwrap();
+        let inv = m.inverse().unwrap();
+        let pinv = m.pseudo_inverse(1e-10);
+        assert_relative_eq!(pinv.get(0, 0), inv.get(0, 0), epsilon = 1e-10);
+        assert_relative_eq!(pinv.get(1, 1), inv.get(1, 1), epsilon = 1e-10);
+    }
+
+    #[test]
+    fn pseudo_inverse_handles_rank_deficient_matrix() {
+        // Matriks rank-1 (outer product [sqrt(10), sqrt(0.1)]) -- khas info
+        // Fisher satu item dikotomus tunggal di nfact=2, singular terhadap
+        // invers biasa.
+        let a = [10.0_f64.sqrt(), 0.1_f64.sqrt()];
+        let m = InfoMatrix::from_matrix(DMatrix::from_row_slice(
+            2,
+            2,
+            &[a[0] * a[0], a[0] * a[1], a[0] * a[1], a[1] * a[1]],
+        ))
+        .unwrap();
+        let pinv = m.pseudo_inverse(1e-10);
+        // Nilai referensi diverifikasi numerik terhadap mirtCAT::computeCriteria
+        // (Arule) pada eksperimen desain Fase 2.
+        assert_relative_eq!(pinv.get(0, 0), 0.09802960494069211, epsilon = 1e-9);
+        assert_relative_eq!(pinv.get(1, 1), 0.0009802960494069213, epsilon = 1e-9);
     }
 }
