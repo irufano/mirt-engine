@@ -90,7 +90,7 @@ fn main() {
         let debug = debug.expect("debug=true harus menghasilkan Some");
         println!("  langkah {step}: item ke-{} dipilih", chosen + 1);
         print_debug(&debug);
-        person.record_answer(chosen);
+        person.record_answer(chosen, 1);
     }
     println!(
         "\nUrutan selalu 1,2,3,... terlepas parameter item -- 'seq' tidak melihat info Fisher."

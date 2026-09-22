@@ -102,7 +102,7 @@ fn run(prior: bool, label: &str) {
         let debug = debug.expect("debug=true harus menghasilkan Some");
         println!("  langkah {step}: item ke-{} dipilih", chosen + 1);
         print_debug(&debug);
-        person.record_answer(chosen);
+        person.record_answer(chosen, 1);
     }
 }
 

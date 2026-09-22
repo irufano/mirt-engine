@@ -264,7 +264,7 @@ sebelum fase berikutnya dimulai.
 | 0 | Fondasi Proyek & Model IRT Dasar | ✅ Selesai |
 | 1 | Theta Awal | ✅ Selesai |
 | 2 | Algoritma Pemilihan Item | ✅ Selesai |
-| 3 | Algoritma Estimasi Kemampuan | ⬜ Belum Dimulai |
+| 3 | Algoritma Estimasi Kemampuan | ✅ Selesai |
 | 4 | Stopping Rule | ⬜ Belum Dimulai |
 | 5 | Exposure Control | ⬜ Belum Dimulai |
 | 6 | Content Balancing | ⬜ Belum Dimulai |
@@ -636,7 +636,41 @@ tidak didukung (`MI`, `MEPV`, `MLWI`, `MPWI`, `MEI`, seluruh `IKL*`).
 
 ## Fase 3 — Algoritma Estimasi Kemampuan (Ability Estimation) pada MCAT
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
+
+> **Update (2026-09-22)**: Diimplementasikan setelah menelusuri source R
+> **asli** `mirt_1.47`/`mirtCAT_1.14` (diunduh dari CRAN, dibaca langsung —
+> bukan cuma dokumentasi) untuk memastikan port setia. Temuan kunci:
+> `mirtCAT::Design$Update.thetas` (`DesignClass.R:57-94`) ternyata **hanya
+> memanggil `mirt::fscores()`** langsung, jadi ground truth algoritma
+> sesungguhnya ada di `mirt/R/fscores.internal.R`. Keputusan desain
+> penting (detail lengkap di `docs/teori/03-ability-estimation-*.md`):
+> - `Ml`/`Map`/`Wle` dioptimasi lewat SATU optimizer Newton-Raphson generik
+>   dengan gradien & Hessian **finite-difference**
+>   (`ability_estimation::optim`, privat) — `nlm()` R yang dipakai
+>   `mirt::MAP.mirt`/`WLE.mirt` juga tidak diberi gradien analitik, jadi
+>   ini setia di level algoritma tanpa perlu mengubah trait
+>   `ItemResponseModel`.
+> - EAP QMC-based memakai leaped-Halton sequence (bukan Sobol) + invers
+>   CDF normal hand-roll (aproksimasi Acklam) — persis algoritma
+>   `mirt::QMC_quad`/`QUnif`, tanpa dependency statistik baru.
+> - `EapSum` beroperasi atas item **terjawab saja** (`PersonState`), bukan
+>   seluruh bank + `NA` — diverifikasi EMPIRIS (menjalankan R sungguhan
+>   dua cara berbeda) bahwa keduanya identik.
+> - `PersonState` (Fase 2) diperluas (breaking change disengaja): field
+>   `se: SEVector` baru, `record_answer` sekarang butuh kategori respons
+>   (`record_answer(item_index, response)`), constructor
+>   `from_theta_and_se` & setter `set_estimate` baru. 9 file existing
+>   (test + example Fase 2) diupdate mengikuti.
+> - Fixture R baru: `tests/fixtures/generate_r_fixtures_ability_estimation.R`
+>   memanggil `mirt::fscores()` langsung (bukan `mirtCAT()` penuh) — 8
+>   test integrasi, parity EAP/MAP dalam `1e-4`, ML `1e-3` (kasus
+>   well-identified; kasus quasi-separated diuji kualitatif, didokumentasikan
+>   eksplisit di `tests/integration_ability_estimation.rs`), WLE/EAPsum
+>   `1e-2`–`5e-2`.
+> - `cargo test`/`cargo clippy --all-targets --all-features -- -D warnings`
+>   hijau di seluruh workspace (122 unit test lib + 8 integration test
+>   Fase 3 + seluruh test Fase 0-2 yang disentuh ulang).
 
 ### Tujuan
 Mengestimasi ulang vektor `theta` (seluruh dimensi sekaligus) setiap kali
@@ -684,44 +718,76 @@ khusus dimensi tinggi.
 - Validasi: `nfact > 4 && method == Eap { qmc: false }` → hasilkan `Warning`/log (bukan error keras, sesuai perilaku R yang hanya `warning()`).
 
 ### Checklist Implementasi
-- [ ] `ability_estimation::Method` (enum) & `EstimationConfig`
-- [ ] `quadrature::build_grid` — grid reguler `quadpts^nfact`, dengan tabel default `quadpts` per `nfact`
-- [ ] `quadrature::build_qmc_points` — titik QMC (Sobol atau Halton) sebagai alternatif untuk `nfact` besar
-- [ ] `eap.rs` — EAP (grid-based & QMC-based)
-- [ ] `map.rs` — MAP (optimisasi langsung dengan prior `N(gmeans, gcov)`)
-- [ ] `ml.rs` — ML (optimisasi likelihood tanpa prior)
-- [ ] `wle.rs` — WLE (weighted likelihood, koreksi bias Warm)
-- [ ] `eap_sum.rs` — EAP berbasis summed score
-- [ ] `fixed.rs` — tidak melakukan apa-apa (identity, mengembalikan theta/SE sebelumnya)
-- [ ] Peringatan (log/tracing) untuk kombinasi `EAP` + `nfact > 4` tanpa QMC
-- [ ] Dukungan debug trace opsional (`EstimationConfig::debug`, default `false`) → `Option<AbilityEstimationDebug>` (jumlah titik kuadratur, iterasi, jejak log-likelihood, status konvergensi)
+- [x] `ability_estimation::Method` (enum) & `EstimationConfig`
+- [x] `quadrature::build_grid` — grid reguler `quadpts^nfact`, dengan tabel default `quadpts` per `nfact`
+- [x] `quadrature::build_qmc_points` — titik QMC (leaped-Halton) sebagai alternatif untuk `nfact` besar
+- [x] `eap.rs` — EAP (grid-based & QMC-based)
+- [x] `map.rs` — MAP (optimisasi langsung dengan prior `N(gmeans, gcov)`)
+- [x] `ml.rs` — ML (optimisasi likelihood tanpa prior)
+- [x] `wle.rs` — WLE (weighted likelihood, koreksi bias Warm)
+- [x] `eap_sum.rs` — EAP berbasis summed score
+- [x] `fixed.rs` — tidak melakukan apa-apa (identity, mengembalikan theta/SE sebelumnya)
+- [x] Peringatan (crate `log`) untuk kombinasi `EAP` + `nfact > 4` tanpa QMC
+- [x] Dukungan debug trace opsional (`EstimationConfig::debug`, default `false`) → `Option<AbilityEstimationDebug>` (jumlah titik kuadratur, iterasi, jejak log-likelihood, status konvergensi)
 
 ### Checklist Unit Test
-- [ ] EAP grid-based konvergen ke nilai analitik pada kasus sintetis 1D sederhana (sanity check dasar sebelum diuji multidimensional)
-- [ ] MAP & ML menghasilkan estimasi berbeda saat prior informatif (`gcov` sempit) — MAP tertarik ke prior, ML tidak
-- [ ] WLE menghasilkan estimasi dengan bias lebih kecil dibanding ML pada simulasi respons ekstrem (semua benar/semua salah, kasus di mana ML bisa divergen ke ±∞ sementara WLE tetap terbatas)
-- [ ] `EapSum` menghasilkan estimasi berbasis kategori summed score sesuai definisi
-- [ ] `Fixed` tidak mengubah theta/SE input
-- [ ] `quadrature::build_grid` menghasilkan jumlah titik `quadpts^nfact` sesuai tabel default, dan bisa dioverride manual
-- [ ] Peringatan ter-trigger untuk `nfact=5, method=Eap{qmc:false}` (dites via capture log/tracing, bukan panic)
-- [ ] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(AbilityEstimationDebug)` terisi (mis. `n_quadrature_points` cocok dengan `build_grid`) dan tidak mengubah `(ThetaVector, SEVector)` yang dikembalikan
+- [x] EAP grid-based konvergen ke nilai analitik pada kasus sintetis 1D sederhana (sanity check dasar sebelum diuji multidimensional)
+- [x] MAP & ML menghasilkan estimasi berbeda saat prior informatif (`gcov` sempit) — MAP tertarik ke prior, ML tidak
+- [x] WLE menghasilkan estimasi dengan bias lebih kecil dibanding ML pada simulasi respons ekstrem (semua benar/semua salah, kasus di mana ML bisa divergen ke ±∞ sementara WLE tetap terbatas)
+- [x] `EapSum` menghasilkan estimasi berbasis kategori summed score sesuai definisi
+- [x] `Fixed` tidak mengubah theta/SE input
+- [x] `quadrature::build_grid` menghasilkan jumlah titik `quadpts^nfact` sesuai tabel default, dan bisa dioverride manual
+- [x] Peringatan ter-trigger untuk `nfact=5, method=Eap{qmc:false}` (dites via capturing logger custom, bukan panic)
+- [x] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(AbilityEstimationDebug)` terisi (mis. `n_quadrature_points` cocok dengan `build_grid`) dan tidak mengubah `(ThetaVector, SEVector)` yang dikembalikan
 
 ### Checklist Integration Test
-- [ ] Fixture R: pola respons tetap pada item bank 2–3 dimensi, estimasi `fscores()` dengan tiap method (`EAP`,`MAP`,`ML`,`WLE`,`EAPsum`) → simpan theta & SE hasil R
-- [ ] Bandingkan hasil Rust vs R per method (toleransi numerik, EAP/MAP/ML diharapkan sangat dekat; WLE/EAPsum ditoleransi lebih longgar karena kemungkinan detail numerik solver berbeda — didokumentasikan eksplisit jika ada deviasi terukur)
-- [ ] Test `nfact=5` — bandingkan ukuran grid kuadratur default Rust vs `quadpts` default R
+- [x] Fixture R: pola respons tetap pada item bank 2–3 dimensi, estimasi `fscores()` dengan tiap method (`EAP`,`MAP`,`ML`,`WLE`,`EAPsum`) → simpan theta & SE hasil R
+- [x] Bandingkan hasil Rust vs R per method (toleransi numerik, EAP/MAP/ML diharapkan sangat dekat; WLE/EAPsum ditoleransi lebih longgar karena kemungkinan detail numerik solver berbeda — didokumentasikan eksplisit jika ada deviasi terukur)
+- [x] Test `nfact=5` — bandingkan ukuran grid kuadratur default Rust vs `quadpts` default R
 
 ### Checklist Example Script
-- [ ] `examples/03_ability_estimation_eap_map_ml_wle.rs` — pola respons yang sama diestimasi dengan tiap method, cetak perbandingan theta/SE & waktu komputasi relatif
+
+> Dipisah 1 file per algoritma (mengikuti 1:1 pemetaan modul
+> `ability_estimation::*` di §"Desain Modul Rust" di atas — `eap.rs`,
+> `map.rs`, `ml.rs`, `wle.rs`, `eap_sum.rs`, `fixed.rs`) supaya tiap contoh
+> fokus pada satu method, bukan menggabungkan beberapa method sekaligus
+> dalam satu file. EAP grid-based & QMC-based tetap satu file (satu modul
+> `eap.rs`, satu algoritma dengan mode integrasi berbeda — sama seperti
+> `KL`/`KLn` di Fase 2).
+
+- [x] `examples/03_ability_estimation_eap.rs` — EAP grid-based vs QMC-based pada pola respons yang sama, cetak perbandingan theta/SE & waktu komputasi relatif antar mode integrasi
+- [x] `examples/03_ability_estimation_map.rs` — MAP dengan prior `N(gmeans, gcov)`, tunjukkan efek prior sempit vs lebar terhadap penarikan theta ke arah mean
+- [x] `examples/03_ability_estimation_ml.rs` — ML tanpa prior, termasuk kasus respons ekstrem (semua benar/semua salah) untuk menunjukkan potensi divergensi ke ±∞
+- [x] `examples/03_ability_estimation_wle.rs` — WLE dengan koreksi bias Warm, dibandingkan dengan ML pada kasus respons ekstrem yang sama untuk menunjukkan bias lebih kecil
+- [x] `examples/03_ability_estimation_eap_sum.rs` — EAP berbasis summed score, cetak pemetaan kategori skor ke theta/SE
+- [x] `examples/03_ability_estimation_fixed.rs` — `Fixed` sebagai identity (theta/SE input tidak berubah), untuk kuesioner non-adaptif
 
 ### Checklist Dokumentasi
-- [ ] `docs/teori/03-ability-estimation.md` — rumus EAP/MAP/ML/WLE/EAPsum multidimensional, isu integrasi dimensi tinggi & QMC, referensi akademik
-- [ ] `docs/panduan/03-ability-estimation.md` — cara memilih method & `quadpts`, kapan pakai QMC
+
+> Sama seperti Checklist Example Script: dipisah 1 pasang teori+panduan per
+> method, plus satu dokumen overview bersama untuk konteks lintas-method
+> (integrasi dimensi tinggi, tabel `quadpts` default per `nfact`, kapan
+> pakai QMC, peringatan `EAP`+`nfact>4`) yang tidak spesifik ke satu method.
+
+- [x] `docs/teori/03-ability-estimation-overview.md` — isu integrasi dimensi tinggi (curse of dimensionality grid kuadratur `quadpts^nfact`), tabel `quadpts` default per `nfact`, motivasi Quasi-Monte Carlo (Cai, 2010), peringatan `EAP`+`nfact>4` tanpa QMC, peta ke dokumen per-method di bawah
+- [x] `docs/teori/03-ability-estimation-eap.md` — rumus EAP multidimensional grid-based & QMC-based (Bock & Aitkin, 1981)
+- [x] `docs/teori/03-ability-estimation-map.md` — rumus MAP, prior `N(gmeans, gcov)` (Reckase, 2009 bab 5)
+- [x] `docs/teori/03-ability-estimation-ml.md` — rumus ML tanpa prior, potensi divergensi pada respons ekstrem
+- [x] `docs/teori/03-ability-estimation-wle.md` — rumus WLE, koreksi bias Warm (Warm, 1989)
+- [x] `docs/teori/03-ability-estimation-eap-sum.md` — rumus EAP berbasis summed score
+- [x] `docs/teori/03-ability-estimation-fixed.md` — semantik `Fixed` (identity, tanpa estimasi ulang) untuk kuesioner non-adaptif
+- [x] `docs/panduan/03-ability-estimation-overview.md` — cara memilih method & `quadpts` secara umum, kapan pakai QMC, peta ke panduan per-method
+- [x] `docs/panduan/03-ability-estimation-eap.md`
+- [x] `docs/panduan/03-ability-estimation-map.md`
+- [x] `docs/panduan/03-ability-estimation-ml.md`
+- [x] `docs/panduan/03-ability-estimation-wle.md`
+- [x] `docs/panduan/03-ability-estimation-eap-sum.md`
+- [x] `docs/panduan/03-ability-estimation-fixed.md`
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine ability_estimation` hijau
-- [ ] Parity numerik EAP/MAP/ML dengan fixture R terverifikasi dalam toleransi yang didokumentasikan
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test -p mirtcat-engine ability_estimation` hijau
+- [x] Parity numerik EAP/MAP/ML dengan fixture R terverifikasi dalam toleransi yang didokumentasikan
 
 ---
 

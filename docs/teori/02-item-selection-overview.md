@@ -13,8 +13,8 @@ multidimensional, grid kuadratur beranak-pinak `quadpts^nfact` titik —
 untuk `nfact = 5` dengan `quadpts = 21` per dimensi, itu ≈ 4 miliar titik.
 Ini yang disebut *curse of dimensionality*: kriteria berbasis kuadratur
 langsung tidak praktis begitu `nfact` lebih dari 2–3 (lih. juga
-`docs/teori/03-ability-estimation.md` untuk masalah serupa di estimasi
-kemampuan).
+`docs/teori/03-ability-estimation-overview.md` untuk masalah serupa di
+estimasi kemampuan).
 
 `mirtCAT` menghindarinya untuk `nfact > 1` dengan memakai kriteria yang
 **tidak** butuh integrasi kuadratur sama sekali:
@@ -92,15 +92,19 @@ langkah pertama.
 
 ## 5. Estimator kemampuan otomatis (`criteria_estimator`)
 
-`mirtCAT` memilih metode estimasi ulang `theta` (Fase 3) secara otomatis
-berdasar kriteria seleksi yang dipakai: `ML` untuk `{Drule, Trule, Erule,
-Wrule, Arule}` (non-prior), `MAP` untuk seluruh varian `*Prule` — alasannya
-konsisten secara Bayesian: kriteria yang sudah menggabungkan prior
-(`*Prule`) idealnya dipasangkan dengan estimator yang juga memakai prior
-(`MAP`), sementara kriteria murni-data (non-prior) dipasangkan dengan
-estimator murni-likelihood (`ML`). Ini keputusan Fase 3 (belum
-diimplementasikan) — dicatat di sini karena berkaitan langsung dengan
-pilihan `Criterion`.
+`mirtCAT` memilih metode estimasi ulang `theta` (Fase 3,
+`ability_estimation::Method` — lih. `docs/teori/03-ability-estimation-overview.md`)
+secara otomatis berdasar kriteria seleksi yang dipakai: `ML` untuk `{Drule,
+Trule, Erule, Wrule, Arule}` (non-prior), `MAP` untuk seluruh varian
+`*Prule` — alasannya konsisten secara Bayesian: kriteria yang sudah
+menggabungkan prior (`*Prule`) idealnya dipasangkan dengan estimator yang
+juga memakai prior (`MAP`), sementara kriteria murni-data (non-prior)
+dipasangkan dengan estimator murni-likelihood (`ML`). Pemilihan OTOMATIS
+`Method` berdasar `Criterion` (mis. field `criteria_estimator` di
+`mirtCAT`) adalah kebijakan orkestrasi sesi CAT (Fase 8, belum
+diimplementasikan) — `ability_estimation::estimate()` sendiri (Fase 3,
+sudah selesai) menerima `Method` eksplisit dari caller, tidak
+menyimpulkannya dari `Criterion` secara otomatis.
 
 ## Referensi
 

@@ -91,7 +91,7 @@ fn run(criterion: Criterion, label: &str) {
             chosen + 1
         );
         print_debug(&debug);
-        person.record_answer(chosen);
+        person.record_answer(chosen, 1);
     }
 }
 

@@ -7,9 +7,10 @@
 //! siklus adaptif di atasnya (item selection, ability estimation, stopping
 //! rule, exposure control, content balancing — fase-fase berikutnya).
 //!
-//! Status implementasi saat ini: **Fase 2 — pemilihan item**. Lihat
+//! Status implementasi saat ini: **Fase 3 — estimasi kemampuan**. Lihat
 //! `PLAN.md` di root crate untuk peta fase lengkap.
 
+pub mod ability_estimation;
 pub mod bank;
 pub mod error;
 pub mod initial_theta;
@@ -17,6 +18,7 @@ pub mod irt;
 pub mod item_selection;
 pub mod theta;
 
+pub use ability_estimation::{AbilityEstimationDebug, EstimationConfig, Method, ScoreEstimate};
 pub use bank::{GroupParams, ItemBank, ItemMeta};
 pub use error::MirtCatError;
 pub use initial_theta::{InitialThetaConfig, InitialThetaDebug, ThetaStart};

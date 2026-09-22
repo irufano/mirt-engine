@@ -93,7 +93,7 @@ fn run_with_seed(seed: u64, verbose: bool) -> Vec<usize> {
             print_debug(&debug);
         }
         order.push(chosen);
-        person.record_answer(chosen);
+        person.record_answer(chosen, 1);
     }
     order
 }

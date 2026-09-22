@@ -78,17 +78,24 @@ mau memberi bobot relatif antar dimensi independen.
 ```rust
 use mirtcat_engine::PersonState;
 
-let mut person = PersonState::new(3); // theta nol, belum ada item terjawab
-// atau: PersonState::from_theta(theta0) hasil Fase 1 (initial_theta::initialize)
+let mut person = PersonState::new(3); // theta/SE nol, belum ada item terjawab
+// atau: PersonState::from_theta_and_se(theta0, se0) hasil Fase 1
+// (initial_theta::initialize) -- lih. docs/panduan/03-ability-estimation-overview.md
 
-person.record_answer(item_index); // catat item terjawab (index ItemBank)
-person.set_theta(new_theta);      // update theta (hasil estimasi ulang Fase 3)
+person.record_answer(item_index, response_category); // catat item + kategori respons terjawab
+person.set_estimate(new_theta, new_se); // update theta & SE (hasil estimasi ulang Fase 3)
 ```
+
+`response_category` (ditambahkan Fase 3, dibutuhkan untuk menghitung
+likelihood) diabaikan sepenuhnya oleh `select_next_item()`/`info_thetas()`
+Fase 2 — hanya `Fase 3` (`ability_estimation::estimate()`) yang
+memakainya.
 
 `PersonState::info_thetas(&bank)` **menghitung ulang** matriks informasi
 kumulatif dari daftar item terjawab tiap dipanggil (bukan field yang
-di-cache) — otomatis konsisten begitu `set_theta()` dipanggil (lih. dokumen
-teori §2 untuk kenapa ini penting, bukan sekadar detail implementasi).
+di-cache) — otomatis konsisten begitu `set_estimate()`/`set_theta()`
+dipanggil (lih. dokumen teori §2 untuk kenapa ini penting, bukan sekadar
+detail implementasi).
 
 ## Kandidat & error
 

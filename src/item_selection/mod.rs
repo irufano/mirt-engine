@@ -47,7 +47,7 @@ use rand::Rng;
 use crate::bank::{GroupParams, ItemBank};
 use crate::error::MirtCatError;
 use crate::irt::{cumulative_information, ItemResponseModel};
-use crate::theta::{InfoMatrix, ThetaVector};
+use crate::theta::{InfoMatrix, SEVector, ThetaVector};
 
 /// Index item di dalam `ItemBank`.
 pub type ItemIndex = usize;
@@ -122,9 +122,10 @@ impl SelectionConfig {
     }
 }
 
-/// State satu peserta yang relevan untuk seleksi item: estimasi `theta`
-/// saat ini dan daftar index item yang sudah dijawab — dipakai lintas fase
-/// berikutnya (estimasi kemampuan, stopping rule, dst.).
+/// State satu peserta yang relevan untuk seleksi item & estimasi kemampuan:
+/// estimasi `theta`/SE saat ini dan daftar item yang sudah dijawab (index +
+/// kategori respons) — dipakai lintas fase berikutnya (estimasi kemampuan,
+/// stopping rule, dst.).
 ///
 /// Sengaja **tidak** menyimpan matriks informasi kumulatif langsung sebagai
 /// field — lih. catatan modul di atas soal kenapa `info_thetas` harus
@@ -133,23 +134,48 @@ impl SelectionConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PersonState {
     theta: ThetaVector,
+    se: SEVector,
     answered_items: Vec<ItemIndex>,
+    /// Kategori respons per item terjawab, paralel dengan `answered_items`
+    /// (index `i` di sini adalah kategori respons untuk `answered_items[i]`).
+    /// Dibutuhkan Fase 3 (likelihood butuh tahu kategori yang benar-benar
+    /// dijawab, bukan cuma item mana yang diadministrasikan).
+    responses: Vec<usize>,
 }
 
 impl PersonState {
-    /// State awal: `theta` nol, belum ada item terjawab.
+    /// State awal: `theta`/SE nol, belum ada item terjawab. `SE` nol di sini
+    /// hanya placeholder mentah (sama seperti `theta` nol) — pemakaian nyata
+    /// semestinya lewat `from_theta_and_se` dengan hasil `initial_theta::initialize`.
     pub fn new(nfact: usize) -> Self {
         Self {
             theta: ThetaVector::zeros(nfact),
+            se: SEVector::zeros(nfact),
             answered_items: Vec::new(),
+            responses: Vec::new(),
         }
     }
 
-    /// State awal dengan `theta` tertentu (mis. hasil `initial_theta::initialize`).
+    /// State awal dengan `theta` tertentu (mis. hasil `initial_theta::initialize`),
+    /// SE nol placeholder (lih. catatan `new`).
     pub fn from_theta(theta: ThetaVector) -> Self {
+        let nfact = theta.nfact();
         Self {
             theta,
+            se: SEVector::zeros(nfact),
             answered_items: Vec::new(),
+            responses: Vec::new(),
+        }
+    }
+
+    /// State awal dengan `theta` & SE tertentu (mis. hasil
+    /// `initial_theta::initialize`, yang mengembalikan keduanya sekaligus).
+    pub fn from_theta_and_se(theta: ThetaVector, se: SEVector) -> Self {
+        Self {
+            theta,
+            se,
+            answered_items: Vec::new(),
+            responses: Vec::new(),
         }
     }
 
@@ -161,9 +187,22 @@ impl PersonState {
         &self.theta
     }
 
-    /// Perbarui estimasi `theta` (dipakai fase estimasi kemampuan berikutnya).
+    pub fn se(&self) -> &SEVector {
+        &self.se
+    }
+
+    /// Perbarui estimasi `theta` saja (dipakai test/eksperimen yang tidak
+    /// peduli SE). Untuk hasil `ability_estimation::estimate`, pakai
+    /// `set_estimate` yang memperbarui `theta` & SE sekaligus.
     pub fn set_theta(&mut self, theta: ThetaVector) {
         self.theta = theta;
+    }
+
+    /// Perbarui `theta` & SE sekaligus — dipakai hasil `ability_estimation::estimate`
+    /// (Fase 3).
+    pub fn set_estimate(&mut self, theta: ThetaVector, se: SEVector) {
+        self.theta = theta;
+        self.se = se;
     }
 
     pub fn n_answered(&self) -> usize {
@@ -174,11 +213,19 @@ impl PersonState {
         &self.answered_items
     }
 
-    /// Catat satu item terjawab (index `ItemBank`). Tidak memvalidasi index
-    /// terhadap bank di sini — validasi terjadi lazily saat `info_thetas()`
+    /// Kategori respons per item terjawab, paralel dengan `answered_items()`.
+    pub fn responses(&self) -> &[usize] {
+        &self.responses
+    }
+
+    /// Catat satu item terjawab (index `ItemBank`) beserta kategori respons
+    /// yang dipilih (index kategori, 0-based -- mis. 0/1 untuk item
+    /// dikotomus). Tidak memvalidasi index/kategori terhadap bank di sini —
+    /// validasi terjadi lazily saat `info_thetas()`/estimasi kemampuan
     /// dipanggil (butuh akses `&ItemBank`).
-    pub fn record_answer(&mut self, item_index: ItemIndex) {
+    pub fn record_answer(&mut self, item_index: ItemIndex, response: usize) {
         self.answered_items.push(item_index);
+        self.responses.push(response);
     }
 
     /// Matriks informasi Fisher kumulatif dari seluruh item terjawab,
@@ -446,7 +493,7 @@ mod tests {
         assert_eq!(person.n_answered(), 0);
         assert_relative_eq!(person.info_thetas(&bank).unwrap().trace(), 0.0);
 
-        person.record_answer(0);
+        person.record_answer(0, 1);
         assert_eq!(person.n_answered(), 1);
         assert_eq!(person.answered_items(), &[0]);
         let expected = item.information(person.theta()).unwrap();
@@ -456,7 +503,7 @@ mod tests {
             epsilon = 1e-12
         );
 
-        person.record_answer(0);
+        person.record_answer(0, 1);
         assert_eq!(person.n_answered(), 2);
         assert_relative_eq!(
             person.info_thetas(&bank).unwrap().get(0, 0),
@@ -479,7 +526,7 @@ mod tests {
         let item = bank.item(0).unwrap();
 
         let mut person = PersonState::new(2);
-        person.record_answer(0);
+        person.record_answer(0, 1);
         let info_at_zero = person.info_thetas(&bank).unwrap();
 
         person.set_theta(ThetaVector::from_vec(vec![0.7, -0.4]));
@@ -498,7 +545,7 @@ mod tests {
     fn person_state_info_thetas_errors_on_out_of_bank_answered_index() {
         let bank = bank_2d();
         let mut person = PersonState::new(2);
-        person.record_answer(999);
+        person.record_answer(999, 1);
         assert!(person.info_thetas(&bank).is_err());
     }
 
@@ -561,7 +608,7 @@ mod tests {
         )
         .unwrap();
         let mut person = PersonState::new(2);
-        person.record_answer(3); // seed: sudah dijawab, bukan kandidat
+        person.record_answer(3, 1); // seed: sudah dijawab, bukan kandidat
 
         let group = GroupParams::standard_normal(2);
         let config = SelectionConfig {
@@ -664,7 +711,7 @@ mod tests {
             select_next_item(&config, &[0], &person_fresh, &bank, &group, &mut rng).unwrap();
 
         for _ in 0..4 {
-            person_fresh.record_answer(1); // n_answered saja yang relevan untuk KLn
+            person_fresh.record_answer(1, 1); // n_answered saja yang relevan untuk KLn
         }
         let (_, debug_after_4) =
             select_next_item(&config, &[0], &person_fresh, &bank, &group, &mut rng).unwrap();

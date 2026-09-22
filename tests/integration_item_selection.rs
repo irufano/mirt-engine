@@ -232,7 +232,7 @@ fn replayed_sequence_matches_r_administered_item_order() {
         // hasil `select_next_item`), verifikasi kriteria dimulai dari
         // langkah kedua, tempat R sungguhan mulai memakai kriteria.
         person.set_theta(ThetaVector::from_vec(thetas_history[0].clone()));
-        person.record_answer(items_answered_r[0] - 1);
+        person.record_answer(items_answered_r[0] - 1, 1);
 
         for (step, &expected_item_1indexed) in items_answered_r.iter().enumerate().skip(1) {
             // Inject theta R yang sesungguhnya dipakai R di langkah ini
@@ -255,7 +255,7 @@ fn replayed_sequence_matches_r_administered_item_order() {
                 expected_item_1indexed
             );
 
-            person.record_answer(chosen);
+            person.record_answer(chosen, 1);
         }
     }
 }
