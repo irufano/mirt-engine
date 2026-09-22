@@ -169,8 +169,14 @@ mirtcat-engine/
 ├── examples/
 │   ├── 00_irt_probability_and_information.rs
 │   ├── 01_initial_theta.rs
-│   ├── 02_item_selection_d_t_a_e_w_rule.rs
-│   ├── 02_item_selection_kl.rs
+│   ├── 02_item_selection_seq.rs
+│   ├── 02_item_selection_random.rs
+│   ├── 02_item_selection_kl.rs      # KL & KLn (satu modul `criteria/kl.rs`, satu contoh)
+│   ├── 02_item_selection_d_rule.rs
+│   ├── 02_item_selection_t_rule.rs
+│   ├── 02_item_selection_a_rule.rs
+│   ├── 02_item_selection_e_rule.rs
+│   ├── 02_item_selection_w_rule.rs
 │   ├── 03_ability_estimation_eap_map_ml_wle.rs
 │   ├── 04_stopping_rule.rs
 │   ├── 05_exposure_control.rs
@@ -187,7 +193,15 @@ mirtcat-engine/
     ├── teori/                      # landasan teori + referensi akademik
     │   ├── 00-fondasi-irt-multidimensional.md
     │   ├── 01-theta-awal.md
-    │   ├── 02-item-selection.md
+    │   ├── 02-item-selection-overview.md   # kenapa nfact>1 membatasi kriteria, criteria_estimator
+    │   ├── 02-item-selection-seq.md
+    │   ├── 02-item-selection-random.md
+    │   ├── 02-item-selection-kl.md          # KL & KLn (satu family teori, Chang & Ying 1996)
+    │   ├── 02-item-selection-d-rule.md
+    │   ├── 02-item-selection-t-rule.md
+    │   ├── 02-item-selection-a-rule.md
+    │   ├── 02-item-selection-e-rule.md
+    │   ├── 02-item-selection-w-rule.md
     │   ├── 03-ability-estimation.md
     │   ├── 04-stopping-rule.md
     │   ├── 05-exposure-control.md
@@ -196,7 +210,15 @@ mirtcat-engine/
     └── panduan/                    # cara pakai (how-to)
         ├── 00-instalasi-dan-quickstart.md
         ├── 01-theta-awal.md
-        ├── 02-item-selection.md
+        ├── 02-item-selection-overview.md   # cara memilih Criterion, kapan weights/*Prule
+        ├── 02-item-selection-seq.md
+        ├── 02-item-selection-random.md
+        ├── 02-item-selection-kl.md
+        ├── 02-item-selection-d-rule.md
+        ├── 02-item-selection-t-rule.md
+        ├── 02-item-selection-a-rule.md
+        ├── 02-item-selection-e-rule.md
+        ├── 02-item-selection-w-rule.md
         ├── 03-ability-estimation.md
         ├── 04-stopping-rule.md
         ├── 05-exposure-control.md
@@ -240,7 +262,7 @@ sebelum fase berikutnya dimulai.
 | Fase | Nama | Status |
 |---|---|---|
 | 0 | Fondasi Proyek & Model IRT Dasar | ✅ Selesai |
-| 1 | Theta Awal | ⬜ Belum Dimulai |
+| 1 | Theta Awal | ✅ Selesai |
 | 2 | Algoritma Pemilihan Item | ⬜ Belum Dimulai |
 | 3 | Algoritma Estimasi Kemampuan | ⬜ Belum Dimulai |
 | 4 | Stopping Rule | ⬜ Belum Dimulai |
@@ -347,7 +369,19 @@ estimator kemampuan.
 
 ## Fase 1 — Theta Awal (Initial Theta)
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
+
+> **Update (2026-09-22)**: perilaku diverifikasi langsung terhadap source
+> `mirtCAT` 1.14 terpasang (`getRefClass("Person")$methods("initialize")`,
+> `getFromNamespace("run_local", "mirtCAT")`) — `theta0` literal nol,
+> `SE0 = sqrt(diag(gcov))` dihitung independen dari override. Fixture
+> `tests/fixtures/generate_r_fixtures_initial_theta.R` menjalankan pipeline
+> `mirtCAT()` off-line sungguhan (bukan hanya pembacaan source) pada model
+> 2D & 3D dengan `gcov` non-diagonal, kasus default & override, disimpan di
+> `tests/fixtures/initial_theta.json`; `tests/integration_initial_theta.rs`
+> hijau terhadapnya (toleransi `1e-6`, kecocokan jauh lebih ketat pada
+> praktiknya karena nilainya eksak/rasional). `cargo test` (45 test) &
+> `cargo clippy --all-targets -- -D warnings` hijau.
 
 ### Tujuan
 Menentukan titik awal vektor kemampuan (`theta₀`) dan SE awal sebelum item
@@ -380,37 +414,37 @@ pertama disajikan, sesuai perilaku `mirtCAT` untuk `nfact > 1`.
   `PerPersonMatrix(Vec<ThetaVector>)` (untuk simulasi offline).
 - `initial_theta::InitialThetaConfig { start: ThetaStart, weights: Option<Vec<f64>>, debug: bool }` — `debug` default `false` (prinsip desain #7).
 - `initial_theta::InitialThetaDebug { source: ThetaStart, gmeans_used: ThetaVector, gcov_diag_used: Vec<f64> }` — jalur yang dipakai (`Zero`/`Fixed`/`PerPersonMatrix`) & nilai `gmeans`/`gcov` sumber SE awal.
-- `initial_theta::initialize(config: &InitialThetaConfig, group: &GroupParams) -> (ThetaVector, SEVector, Vec<f64> /* weights */, Option<InitialThetaDebug>)` — elemen terakhir `Some(_)` hanya bila `config.debug == true`.
+- `initial_theta::initialize(config: &InitialThetaConfig, group: &GroupParams, person_index: usize) -> Result<(ThetaVector, SEVector, Vec<f64> /* weights */, Option<InitialThetaDebug>), MirtCatError>` — elemen terakhir `Some(_)` hanya bila `config.debug == true`. Parameter `person_index` ditambahkan di atas sketsa awal supaya `ThetaStart::PerPersonMatrix` (simulasi offline banyak peserta) punya cara memilih baris per-peserta yang eksplisit (padanan indeks `n` di `thetas.start_in[n, ]` R); diabaikan untuk `Zero`/`Fixed`. Return dibungkus `Result` (bukan tuple polos) supaya konsisten dengan pola error eksplisit yang sudah dipakai `ItemResponseModel`/`ItemBank` (Fase 0) — juga mengakomodasi item checklist "validasi error dimensi" yang sketsa awal implikasikan tapi tidak tertulis di signature.
 
 ### Checklist Implementasi
-- [ ] `initial_theta::ThetaStart` (enum) & `InitialThetaConfig`
-- [ ] Fungsi `initialize()`: theta nol default, override via `Fixed`/`PerPersonMatrix`
-- [ ] SE awal dari `sqrt(diag(gcov))`
-- [ ] Default `weights = vec![1.0; nfact]`, validasi panjang `weights == nfact` jika diberikan manual
-- [ ] Dukungan debug trace opsional (`InitialThetaConfig::debug`, default `false`) → `Option<InitialThetaDebug>`
+- [x] `initial_theta::ThetaStart` (enum) & `InitialThetaConfig`
+- [x] Fungsi `initialize()`: theta nol default, override via `Fixed`/`PerPersonMatrix`
+- [x] SE awal dari `sqrt(diag(gcov))`
+- [x] Default `weights = vec![1.0; nfact]`, validasi panjang `weights == nfact` jika diberikan manual
+- [x] Dukungan debug trace opsional (`InitialThetaConfig::debug`, default `false`) → `Option<InitialThetaDebug>`
 
 ### Checklist Unit Test
-- [ ] Default (tanpa override) menghasilkan theta nol sepanjang `nfact`
-- [ ] Override `Fixed(theta)` dipakai apa adanya
-- [ ] SE awal sama dengan akar diagonal `gcov` untuk beberapa matriks kovarians contoh (termasuk kovarians non-diagonal, memastikan hanya diagonal yang diambil)
-- [ ] Validasi error saat dimensi `thetas_start`/`weights` tidak cocok dengan `nfact`
-- [ ] `debug=false` → elemen ke-4 `None`; `debug=true` → `Some(InitialThetaDebug)` terisi dan tidak mengubah `theta`/SE/`weights` yang dikembalikan
+- [x] Default (tanpa override) menghasilkan theta nol sepanjang `nfact`
+- [x] Override `Fixed(theta)` dipakai apa adanya
+- [x] SE awal sama dengan akar diagonal `gcov` untuk beberapa matriks kovarians contoh (termasuk kovarians non-diagonal, memastikan hanya diagonal yang diambil)
+- [x] Validasi error saat dimensi `thetas_start`/`weights` tidak cocok dengan `nfact`
+- [x] `debug=false` → elemen ke-4 `None`; `debug=true` → `Some(InitialThetaDebug)` terisi dan tidak mengubah `theta`/SE/`weights` yang dikembalikan
 
 ### Checklist Integration Test
-- [ ] Fixture R: `mirtCAT` diinisialisasi dengan model 2–3 dimensi terkalibrasi (tanpa override) → ekstrak `theta₀`, `SE₀` dari objek `Person`/`Test`, simpan JSON
-- [ ] Bandingkan hasil `initial_theta::initialize()` Rust vs fixture R (toleransi `1e-6`)
+- [x] Fixture R: `mirtCAT` diinisialisasi dengan model 2–3 dimensi terkalibrasi (tanpa override) → ekstrak `theta₀`, `SE₀` dari objek `Person`/`Test`, simpan JSON — `tests/fixtures/generate_r_fixtures_initial_theta.R`, dijalankan sungguhan (R 4.6.1/mirtCAT 1.14) via pipeline `mirtCAT()` off-line sesungguhnya (`thetas_history[1,]`/`thetas_SE_history[1,]` dari objek `Person`), bukan hanya ekstraksi `test@gp`; mencakup kasus default & override, model 2D & 3D dengan `gcov` non-diagonal
+- [x] Bandingkan hasil `initial_theta::initialize()` Rust vs fixture R (toleransi `1e-6`) — `tests/integration_initial_theta.rs`, 4 test, hijau
 
 ### Checklist Example Script
-- [ ] `examples/01_initial_theta.rs` — inisialisasi 1 peserta default vs override manual, cetak `theta₀`/`SE₀`/`weights`
+- [x] `examples/01_initial_theta.rs` — inisialisasi 1 peserta default vs override manual, cetak `theta₀`/`SE₀`/`weights` (juga mendemonstrasikan `PerPersonMatrix` & debug trace)
 
 ### Checklist Dokumentasi
-- [ ] `docs/teori/01-theta-awal.md` — landasan teori prior multivariat + referensi akademik
-- [ ] `docs/panduan/01-theta-awal.md` — cara set `ThetaStart`, kapan override manual masuk akal
+- [x] `docs/teori/01-theta-awal.md` — landasan teori prior multivariat + referensi akademik
+- [x] `docs/panduan/01-theta-awal.md` — cara set `ThetaStart`, kapan override manual masuk akal
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine initial_theta` hijau
-- [ ] Parity numerik dengan fixture R terverifikasi
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test -p mirtcat-engine initial_theta` hijau (juga `cargo test` penuh: 45 test hijau, `cargo clippy --all-targets -- -D warnings` bersih, `cargo fmt --check` bersih)
+- [x] Parity numerik dengan fixture R terverifikasi
 
 ---
 
@@ -506,12 +540,49 @@ tidak didukung (`MI`, `MEPV`, `MLWI`, `MPWI`, `MEI`, seluruh `IKL*`).
 - [ ] Test `info_thetas` kumulatif Rust vs R pada tiap tahap (memastikan akumulasi matriks informasi benar antar-item)
 
 ### Checklist Example Script
-- [ ] `examples/02_item_selection_d_t_a_e_w_rule.rs` — simulasi 5 item pertama dipilih dengan tiap kriteria D/T/A/E/W-rule pada item bank 2D yang sama, cetak perbandingan urutan
+
+> Dipisah 1 file per algoritma (mengikuti 1:1 pemetaan modul
+> `item_selection::criteria::*` di §3/"Desain Modul Rust" di atas) supaya
+> tiap contoh fokus pada satu kriteria, bukan menggabungkan beberapa
+> algoritma sekaligus dalam satu file. `KL`/`KLn` tetap satu file (satu
+> modul `criteria/kl.rs`, satu keluarga rumus — bukan digabung demi
+> kepraktisan, tapi karena memang satu algoritma dengan skala `delta`
+> berbeda).
+
+- [ ] `examples/02_item_selection_seq.rs` — urutan `seq` (item ke-n = item bank ke-n), tanpa kriteria informasi
+- [ ] `examples/02_item_selection_random.rs` — pemilihan `random` di antara kandidat tersisa (seed tetap untuk reproducibility)
 - [ ] `examples/02_item_selection_kl.rs` — demonstrasi KL vs KLn, cetak bagaimana `delta` efektif melebar seiring item bertambah
+- [ ] `examples/02_item_selection_d_rule.rs` — simulasi 5 item pertama dipilih via `Drule` (determinan matriks informasi) pada item bank 2D, + varian `DPrule`
+- [ ] `examples/02_item_selection_t_rule.rs` — `Trule` tanpa/dengan `weights`, + varian `TPrule`
+- [ ] `examples/02_item_selection_a_rule.rs` — `Arule` (negatif trace invers), + varian `APrule`
+- [ ] `examples/02_item_selection_e_rule.rs` — `Erule` (eigenvalue minimum), + varian `EPrule`
+- [ ] `examples/02_item_selection_w_rule.rs` — `Wrule` dengan `weights` custom, + varian `WPrule`
 
 ### Checklist Dokumentasi
-- [ ] `docs/teori/02-item-selection.md` — rumus tiap kriteria, kenapa `nfact > 1` membatasi pilihan kriteria (curse of dimensionality grid kuadratur), referensi akademik
-- [ ] `docs/panduan/02-item-selection.md` — cara memilih `Criterion`, kapan pakai `weights`, kapan pakai varian `*Prule`
+
+> Sama seperti Example Script: dipisah 1 pasang teori+panduan per
+> algoritma supaya fokus, plus satu dokumen overview bersama untuk
+> konteks lintas-kriteria (validasi `nfact > 1`, `criteria_estimator`
+> otomatis) yang tidak spesifik ke satu algoritma.
+
+- [ ] `docs/teori/02-item-selection-overview.md` — kenapa `nfact > 1` membatasi pilihan kriteria (curse of dimensionality grid kuadratur), daftar kriteria valid, `criteria_estimator` otomatis (`ML` vs `MAP`), peta ke dokumen per-algoritma di bawah
+- [ ] `docs/teori/02-item-selection-seq.md` — `seq` sebagai baseline non-adaptif/kuesioner terurut
+- [ ] `docs/teori/02-item-selection-random.md` — `random` sebagai baseline exposure-neutral
+- [ ] `docs/teori/02-item-selection-kl.md` — rumus KL & KLn, dasar Chang & Ying (1996)
+- [ ] `docs/teori/02-item-selection-d-rule.md` — rumus `Drule`/`DPrule`, D-optimality (Segall, 1996)
+- [ ] `docs/teori/02-item-selection-t-rule.md` — rumus `Trule`/`TPrule`, trace berbobot
+- [ ] `docs/teori/02-item-selection-a-rule.md` — rumus `Arule`/`APrule`, minimum error-variance (van der Linden, 1999)
+- [ ] `docs/teori/02-item-selection-e-rule.md` — rumus `Erule`/`EPrule`, eigenvalue minimum
+- [ ] `docs/teori/02-item-selection-w-rule.md` — rumus `Wrule`/`WPrule`, kombinasi berbobot kustom
+- [ ] `docs/panduan/02-item-selection-overview.md` — cara memilih `Criterion` secara umum, kapan pakai `weights`, kapan pakai varian `*Prule`, peta ke panduan per-algoritma
+- [ ] `docs/panduan/02-item-selection-seq.md`
+- [ ] `docs/panduan/02-item-selection-random.md`
+- [ ] `docs/panduan/02-item-selection-kl.md`
+- [ ] `docs/panduan/02-item-selection-d-rule.md`
+- [ ] `docs/panduan/02-item-selection-t-rule.md`
+- [ ] `docs/panduan/02-item-selection-a-rule.md`
+- [ ] `docs/panduan/02-item-selection-e-rule.md`
+- [ ] `docs/panduan/02-item-selection-w-rule.md`
 
 ### Definition of Done
 - [ ] Semua checklist di atas tercentang

@@ -1,5 +1,5 @@
 //! Contoh Fase 0: mendefinisikan beberapa item 2D/3D (dikotomus & graded
-//! response), lalu mencetak probabilitas kategori (peluang benar/salah peserta dengan kemampuan theta tertentu) dan 
+//! response), lalu mencetak probabilitas kategori (peluang benar/salah peserta dengan kemampuan theta tertentu) dan
 //! matriks informasi Fisher (seberapa presisi/informatif item itu dalam menentukan kemampuan peserta di titik theta)
 //! pada beberapa titik `theta`.
 //!
