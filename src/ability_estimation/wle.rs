@@ -102,8 +102,15 @@ mod tests {
         let ml_result = ml::estimate(&person, &bank, &group).unwrap();
 
         assert!(wle_result.theta[0].is_finite(), "WLE harus tetap terbatas");
-        assert_eq!(ml_result.theta[0], f64::INFINITY, "ML harus divergen (pembanding)");
-        assert!(wle_result.theta[0] > 0.0, "arah tetap ke atas (semua benar)");
+        assert_eq!(
+            ml_result.theta[0],
+            f64::INFINITY,
+            "ML harus divergen (pembanding)"
+        );
+        assert!(
+            wle_result.theta[0] > 0.0,
+            "arah tetap ke atas (semua benar)"
+        );
     }
 
     #[test]

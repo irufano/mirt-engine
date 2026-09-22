@@ -33,8 +33,11 @@ use super::quadrature::build_grid;
 /// Satu baris pemetaan skor total -> `(theta, SE)`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoreEstimate {
+    /// Skor total (jumlah kategori respons benar/terpilih) baris ini.
     pub sum_score: usize,
+    /// Estimasi `theta` EAP untuk `sum_score`.
     pub theta: ThetaVector,
+    /// SE dari `theta` untuk `sum_score`.
     pub se: SEVector,
 }
 
@@ -139,15 +142,12 @@ pub(crate) fn estimate(
     }
 
     let current_score: usize = person.responses().iter().sum();
-    let current = by_score
-        .get(current_score)
-        .cloned()
-        .ok_or_else(|| {
-            MirtCatError::InvalidParameter(format!(
-                "ability_estimation::eap_sum: skor total {current_score} di luar jangkauan \
+    let current = by_score.get(current_score).cloned().ok_or_else(|| {
+        MirtCatError::InvalidParameter(format!(
+            "ability_estimation::eap_sum: skor total {current_score} di luar jangkauan \
                  0..={max_score} -- kategori respons tercatat tidak valid untuk item terkait"
-            ))
-        })?;
+        ))
+    })?;
 
     Ok(EapSumResult {
         by_score,

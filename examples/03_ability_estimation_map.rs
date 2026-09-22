@@ -10,7 +10,9 @@
 use mirtcat_engine::ability_estimation::estimate;
 use mirtcat_engine::irt::Dichotomous;
 use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector};
+use mirtcat_engine::{
+    EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector,
+};
 use nalgebra::DMatrix;
 
 fn build_bank() -> ItemBank {
@@ -77,7 +79,12 @@ fn main() {
 
     let wide_cov = InfoMatrix::from_matrix(DMatrix::from_row_slice(1, 1, &[100.0])).unwrap();
     let wide_group = GroupParams::new(gmeans, wide_cov).unwrap();
-    run("Prior LEBAR (var=100, hampir tak berinformasi)", &wide_group, &person, &bank);
+    run(
+        "Prior LEBAR (var=100, hampir tak berinformasi)",
+        &wide_group,
+        &person,
+        &bank,
+    );
 
     println!();
     println!(
@@ -88,7 +95,8 @@ fn main() {
 
     println!();
     println!("== Tanpa item terjawab -- MAP harus persis gmeans (posterior = prior) ==");
-    let group_zero = GroupParams::new(ThetaVector::from_vec(vec![0.6]), InfoMatrix::identity(1)).unwrap();
+    let group_zero =
+        GroupParams::new(ThetaVector::from_vec(vec![0.6]), InfoMatrix::identity(1)).unwrap();
     let empty_person = PersonState::new(1);
     run("Belum ada item dijawab", &group_zero, &empty_person, &bank);
 }

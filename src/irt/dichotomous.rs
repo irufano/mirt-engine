@@ -62,18 +62,22 @@ impl Dichotomous {
         Self::new(a, d, g, u)
     }
 
+    /// Slope per dimensi.
     pub fn a(&self) -> &[f64] {
         &self.a
     }
 
+    /// Intercept/difficulty.
     pub fn d(&self) -> f64 {
         self.d
     }
 
+    /// Guessing/lower asymptote.
     pub fn g(&self) -> f64 {
         self.g
     }
 
+    /// Upper asymptote.
     pub fn u(&self) -> f64 {
         self.u
     }

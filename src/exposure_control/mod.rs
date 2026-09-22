@@ -7,8 +7,8 @@
 //! dari nilai vektor `exposure`), keduanya diperiksa langsung dari source
 //! terpasang mirtCAT 1.14 (`getFromNamespace("findNextCATItem", "mirtCAT")`,
 //! `selectMethod("initialize", "Design")`) — bukan hanya dibaca dari
-//! `PLAN.md`. Rincian & rujukan akademik tiap mode di [`sympson_hetter`] dan
-//! [`randomesque`].
+//! `PLAN.md`. Rincian & rujukan akademik tiap mode di modul privat
+//! `sympson_hetter` dan `randomesque`.
 //!
 //! **Temuan yang memperjelas/mengoreksi sketsa awal `PLAN.md` §Fase 5**:
 //!
@@ -53,11 +53,11 @@ use crate::item_selection::ItemIndex;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExposureMode {
     /// Loop terima/tolak per-item; nilai diindeks per **ID item**
-    /// (panjang `n_items`). Lih. [`sympson_hetter`].
+    /// (panjang `n_items`). Lih. modul privat `sympson_hetter`.
     SympsonHetter(Vec<f64>),
     /// Top-*n* random; nilai diindeks per **posisi penyajian** (panjang
     /// `n_items`, elemen ke-`k` dipakai saat `k` item sudah terjawab).
-    /// Lih. [`randomesque`].
+    /// Lih. modul privat `randomesque`.
     Randomesque(Vec<u32>),
 }
 
@@ -104,6 +104,7 @@ impl ExposureMode {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExposureControlConfig {
+    /// Mode exposure control yang dipakai.
     pub mode: ExposureMode,
     /// Aktifkan jejak debug (prinsip desain #7 `PLAN.md`). Default `false`.
     pub debug: bool,

@@ -12,8 +12,11 @@ pub enum MirtCatError {
     /// Dimensi vektor/matriks tidak cocok dengan `nfact` yang diharapkan.
     #[error("dimensi tidak cocok: diharapkan {expected}, didapat {actual} ({context})")]
     DimensionMismatch {
+        /// Dimensi yang diharapkan.
         expected: usize,
+        /// Dimensi yang sebenarnya didapat.
         actual: usize,
+        /// Konteks tekstual (nama fungsi/operasi) tempat mismatch terjadi.
         context: &'static str,
     },
 

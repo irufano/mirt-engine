@@ -10,7 +10,9 @@
 use mirtcat_engine::ability_estimation::estimate;
 use mirtcat_engine::irt::Dichotomous;
 use mirtcat_engine::theta::SEVector;
-use mirtcat_engine::{EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector};
+use mirtcat_engine::{
+    EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector,
+};
 
 fn build_bank() -> ItemBank {
     let params: [(f64, f64); 4] = [(1.0, 0.0), (0.9, 0.1), (1.1, -0.1), (0.8, 0.2)];

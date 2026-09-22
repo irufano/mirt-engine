@@ -11,8 +11,8 @@
 //! (`mirtCAT/R/DesignClass.R:312-381`, dikonfirmasi identik pada R
 //! 4.6.1/mirtCAT 1.14 terpasang & checkout source 1.14.3). Mode klasifikasi
 //! `SPRT` (Wald, 1945) **berbeda semantik** dari `CI`: bukan "all dimensi",
-//! melainkan satu uji rasio log-likelihood sekuensial gabungan (lih.
-//! [`sprt`]).
+//! melainkan satu uji rasio log-likelihood sekuensial gabungan (lih. modul
+//! privat `sprt`).
 //!
 //! `.Object@stage > 1L` di R (terkait transisi tahap preCAT) diabaikan di
 //! sini -- preCAT di luar scope crate ini (belum diimplementasikan), dan
@@ -42,11 +42,12 @@
 //!   tersebut untuk satu field yang jarang dipakai.
 //!
 //! **Reuse eksplisit** (Prinsip Desain #1 PLAN.md -- jangan duplikasi):
-//! [`sprt::evaluate`] memakai [`crate::ability_estimation::log_likelihood_at`]
-//! (Fase 3, sudah teruji) untuk `LL0`/`LL1`, dan [`classify_ci::evaluate`]
-//! memakai [`crate::ability_estimation::quadrature::inverse_normal_cdf`]
-//! (padanan `qnorm()`, sudah ada) -- tidak menulis ulang keduanya maupun
-//! menambah dependency statistik baru.
+//! `sprt::evaluate()` (modul privat) memakai
+//! `crate::ability_estimation::log_likelihood_at()` (Fase 3, sudah teruji,
+//! `pub(crate)`) untuk `LL0`/`LL1`, dan `classify_ci::evaluate()` (modul
+//! privat) memakai `crate::ability_estimation::quadrature::inverse_normal_cdf()`
+//! (padanan `qnorm()`, sudah ada, `pub(crate)`) -- tidak menulis ulang
+//! keduanya maupun menambah dependency statistik baru.
 
 mod classify_ci;
 mod delta_theta;
@@ -66,8 +67,11 @@ use crate::theta::{SEVector, ThetaVector};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ClassifyDecision {
+    /// `theta`/rasio likelihood di atas cutoff/batas atas.
     AboveCutoff,
+    /// `theta`/rasio likelihood di bawah cutoff/batas bawah.
     BelowCutoff,
+    /// Belum cukup presisi/data untuk memutuskan.
     NoDecision,
 }
 
@@ -80,15 +84,24 @@ pub enum ClassifyType {
     #[default]
     None,
     /// Klasifikasi berbasis confidence interval per-dimensi terhadap
-    /// `cutoffs` (z-score vs `alpha`, lih. [`classify_ci`]).
-    Ci { cutoffs: Vec<f64>, alpha: f64 },
+    /// `cutoffs` (z-score vs `alpha`, lih. modul privat `classify_ci`).
+    Ci {
+        /// Nilai cutoff per-dimensi.
+        cutoffs: Vec<f64>,
+        /// Tingkat signifikansi untuk z-score vs `cutoffs`.
+        alpha: f64,
+    },
     /// Uji rasio log-likelihood sekuensial Wald antara hipotesis `lower`
-    /// vs `upper` (lih. [`sprt`]). `alpha`/`beta` menurunkan batas `[a, b]`
+    /// vs `upper` (lih. modul privat `sprt`). `alpha`/`beta` menurunkan batas `[a, b]`
     /// (padanan `sprt_alpha`/`sprt_beta` R, default `0.05` masing-masing).
     Sprt {
+        /// Hipotesis `theta` batas bawah.
         lower: ThetaVector,
+        /// Hipotesis `theta` batas atas.
         upper: ThetaVector,
+        /// Tingkat error tipe I (menurunkan batas `a`).
         alpha: f64,
+        /// Tingkat error tipe II (menurunkan batas `b`).
         beta: f64,
     },
 }
@@ -111,8 +124,8 @@ pub struct StoppingConfig {
     pub max_time: Option<Duration>,
     /// Ambang SE per-dimensi untuk `met_SEM` (hanya dipakai bila
     /// `classify == ClassifyType::None`). Panjang `1` (broadcast ke
-    /// `nfact`) atau persis `nfact`, sama seperti `min_SEM` R -- lih.
-    /// [`broadcast`]. Default `vec![0.3]` (padanan default R).
+    /// `nfact`) atau persis `nfact`, sama seperti `min_SEM` R -- lih. fungsi
+    /// privat `broadcast()`. Default `vec![0.3]` (padanan default R).
     pub min_sem: Vec<f64>,
     /// Ambang `|Δtheta|` per-dimensi untuk `met_delta_thetas`. Aturan
     /// panjang sama seperti `min_sem`. Default `vec![0.0]` (nonaktif,
@@ -148,6 +161,7 @@ impl Default for StoppingConfig {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StopDecision {
+    /// `true` bila tes harus berhenti sekarang.
     pub stop_now: bool,
     /// Hanya relevan bila `classify == ClassifyType::None`; `vec![false;
     /// nfact]` (nilai default R yang tidak pernah ditimpa) untuk mode
@@ -176,6 +190,7 @@ pub struct StopDecision {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StoppingRuleDebug {
+    /// SE `theta` saat evaluasi ini.
     pub se_values: SEVector,
     /// `|Δtheta|` mentah per-dimensi -- kosong bila belum ada
     /// `previous_theta` untuk dibandingkan.
@@ -194,6 +209,7 @@ pub struct StoppingRuleDebug {
 /// Blanket impl untuk `Fn(&PersonState) -> bool` supaya closure biasa bisa
 /// dipakai langsung tanpa perlu struct pembungkus.
 pub trait CustomStop {
+    /// `true` bila hook kustom ini memaksa tes berhenti sekarang.
     fn check(&self, person: &PersonState) -> bool;
 }
 
@@ -210,7 +226,11 @@ where
 /// panjang `1` disebar ke `nfact`, panjang `nfact` dipakai apa adanya,
 /// selain itu error -- persis pesan error R `"... criteria is not a
 /// suitable length"` (`DesignClass.R:275-276`).
-fn broadcast(values: &[f64], nfact: usize, context: &'static str) -> Result<Vec<f64>, MirtCatError> {
+fn broadcast(
+    values: &[f64],
+    nfact: usize,
+    context: &'static str,
+) -> Result<Vec<f64>, MirtCatError> {
     match values.len() {
         1 => Ok(vec![values[0]; nfact]),
         n if n == nfact => Ok(values.to_vec()),
@@ -292,7 +312,8 @@ pub fn evaluate(
                         context: "StoppingConfig::classify Ci.cutoffs",
                     });
                 }
-                let (met, decisions) = classify_ci::evaluate(person.theta(), person.se(), cutoffs, *alpha);
+                let (met, decisions) =
+                    classify_ci::evaluate(person.theta(), person.se(), cutoffs, *alpha);
                 let all_met = met.iter().all(|&m| m);
                 met_classify = Some(met);
                 classification = decisions;
@@ -312,7 +333,8 @@ pub fn evaluate(
             }
         }
 
-        met_delta_thetas = delta_theta::evaluate(person.theta(), person.previous_theta(), &delta_thetas);
+        met_delta_thetas =
+            delta_theta::evaluate(person.theta(), person.previous_theta(), &delta_thetas);
         if met_delta_thetas.iter().all(|&m| m) {
             stop_now = true;
             terminated_early = true;
@@ -346,7 +368,9 @@ pub fn evaluate(
     let debug = config.debug.then(|| StoppingRuleDebug {
         se_values: person.se().clone(),
         delta_theta_values: match person.previous_theta() {
-            Some(prev) => (0..nfact).map(|i| (person.theta()[i] - prev[i]).abs()).collect(),
+            Some(prev) => (0..nfact)
+                .map(|i| (person.theta()[i] - prev[i]).abs())
+                .collect(),
             None => Vec::new(),
         },
         sprt_log_likelihood_ratio: debug_sprt_llr,
@@ -374,7 +398,8 @@ mod tests {
 
     fn person_with_se(se: Vec<f64>) -> PersonState {
         let nfact = se.len();
-        let mut person = PersonState::from_theta_and_se(ThetaVector::zeros(nfact), SEVector::from_vec(se));
+        let mut person =
+            PersonState::from_theta_and_se(ThetaVector::zeros(nfact), SEVector::from_vec(se));
         person.record_answer(0, 1);
         person
     }
@@ -520,7 +545,8 @@ mod tests {
             ..config
         };
         let person_ambiguous = PersonState::new(2);
-        let (decision, _) = evaluate(&config_no_min_items, &person_ambiguous, &bank, false, None).unwrap();
+        let (decision, _) =
+            evaluate(&config_no_min_items, &person_ambiguous, &bank, false, None).unwrap();
         assert!(!decision.stop_now);
         assert_eq!(decision.classification, vec![ClassifyDecision::NoDecision]);
     }
@@ -567,15 +593,22 @@ mod tests {
 
         let never_stop = |_: &PersonState| false;
         let (decision, _) = evaluate(&config, &person, &bank, false, Some(&never_stop)).unwrap();
-        assert!(!decision.stop_now, "customStop harus MENIMPA total, bahkan membatalkan max_items");
+        assert!(
+            !decision.stop_now,
+            "customStop harus MENIMPA total, bahkan membatalkan max_items"
+        );
 
         let always_stop = |_: &PersonState| true;
         let config_loose = StoppingConfig {
             min_sem: vec![f64::NEG_INFINITY, f64::NEG_INFINITY],
             ..Default::default()
         };
-        let (decision, _) = evaluate(&config_loose, &person, &bank, false, Some(&always_stop)).unwrap();
-        assert!(decision.stop_now, "customStop harus bisa memaksa stop walau presisi/limit belum tercapai");
+        let (decision, _) =
+            evaluate(&config_loose, &person, &bank, false, Some(&always_stop)).unwrap();
+        assert!(
+            decision.stop_now,
+            "customStop harus bisa memaksa stop walau presisi/limit belum tercapai"
+        );
     }
 
     #[test]
@@ -589,17 +622,26 @@ mod tests {
         let person = person_with_se(vec![0.1, 0.1]); // presisi terpenuhi -> stop_now akan true
 
         let (decision, _) = evaluate(&config, &person, &bank, true, None).unwrap();
-        assert!(!decision.stop_now, "harus dicegah karena masih di tengah blok constraint");
+        assert!(
+            !decision.stop_now,
+            "harus dicegah karena masih di tengah blok constraint"
+        );
 
         let (decision, _) = evaluate(&config, &person, &bank, false, None).unwrap();
-        assert!(decision.stop_now, "tidak di tengah blok constraint -> boleh stop");
+        assert!(
+            decision.stop_now,
+            "tidak di tengah blok constraint -> boleh stop"
+        );
 
         let config_allowed = StoppingConfig {
             allow_constrain_breaks: true,
             ..config
         };
         let (decision, _) = evaluate(&config_allowed, &person, &bank, true, None).unwrap();
-        assert!(decision.stop_now, "allow_constrain_breaks=true -> guard tidak berlaku");
+        assert!(
+            decision.stop_now,
+            "allow_constrain_breaks=true -> guard tidak berlaku"
+        );
     }
 
     #[test]
@@ -610,7 +652,8 @@ mod tests {
             ..Default::default()
         };
         let person = person_with_se(vec![0.1, 0.1]);
-        let (decision_a, debug_a) = evaluate(&config_no_debug, &person, &bank, false, None).unwrap();
+        let (decision_a, debug_a) =
+            evaluate(&config_no_debug, &person, &bank, false, None).unwrap();
         assert!(debug_a.is_none());
 
         let config_debug = StoppingConfig {

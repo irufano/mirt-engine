@@ -18,8 +18,8 @@ use crate::item_selection::PersonState;
 use crate::theta::{SEVector, ThetaVector};
 
 use super::density::log_dmvnorm;
-use super::quadrature::{build_grid, build_qmc_points};
 use super::log_likelihood_at;
+use super::quadrature::{build_grid, build_qmc_points};
 
 /// Hasil EAP + jumlah titik kuadratur dipakai (untuk `AbilityEstimationDebug`).
 pub(crate) struct EapResult {
@@ -122,8 +122,11 @@ mod tests {
 
     fn bank_1item_1d(a: f64, d: f64) -> ItemBank {
         let mut bank = ItemBank::new();
-        bank.push(Box::new(Dichotomous::m2pl(vec![a], d).unwrap()), ItemMeta::new(0))
-            .unwrap();
+        bank.push(
+            Box::new(Dichotomous::m2pl(vec![a], d).unwrap()),
+            ItemMeta::new(0),
+        )
+        .unwrap();
         bank
     }
 
@@ -148,7 +151,10 @@ mod tests {
         let incorrect = estimate(&person_incorrect, &bank, &group, quadpts, false).unwrap();
 
         assert_relative_eq!(correct.theta[0], -incorrect.theta[0], epsilon = 1e-9);
-        assert!(correct.theta[0] > 0.0, "respons benar harus menarik theta positif");
+        assert!(
+            correct.theta[0] > 0.0,
+            "respons benar harus menarik theta positif"
+        );
 
         // Brute-force independen: integral kontinu didekati Riemann sum
         // langsung (bukan reuse `build_grid`), dibandingkan terhadap hasil

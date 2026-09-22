@@ -50,7 +50,9 @@ fn scenario_max_items_high_nfact() {
         // hanya membagi informasi tipis ke tiap dimensi) -- mensimulasikan
         // realita nfact tinggi: informasi per-dimensi per-item jauh lebih
         // encer dibanding kasus nfact rendah (`04_stopping_rule_min_sem`).
-        let se: Vec<f64> = (0..nfact).map(|_| 0.4 + 0.6 * 0.94_f64.powi(k as i32)).collect();
+        let se: Vec<f64> = (0..nfact)
+            .map(|_| 0.4 + 0.6 * 0.94_f64.powi(k as i32))
+            .collect();
         let theta = vec![0.5; nfact];
         person.set_estimate(ThetaVector::from_vec(theta), SEVector::from_vec(se.clone()));
 
@@ -65,7 +67,9 @@ fn scenario_max_items_high_nfact() {
         if decision.stop_now {
             println!();
             if decision.terminated_early {
-                println!("Presisi tercapai sebelum item habis (tidak diharapkan pada skenario ini).");
+                println!(
+                    "Presisi tercapai sebelum item habis (tidak diharapkan pada skenario ini)."
+                );
             } else {
                 println!(
                     "Berhenti karena max_items={n_items} TERCAPAI -- min_SEM belum terpenuhi di \
@@ -98,7 +102,10 @@ fn scenario_max_time() {
         person.record_answer(k - 1, 1);
         person.record_item_time(Duration::from_secs(12)); // 12 detik/item
         let se = vec![0.5 * 0.9_f64.powi(k as i32); 2];
-        person.set_estimate(ThetaVector::from_vec(vec![0.3, -0.2]), SEVector::from_vec(se));
+        person.set_estimate(
+            ThetaVector::from_vec(vec![0.3, -0.2]),
+            SEVector::from_vec(se),
+        );
 
         let (decision, _) = evaluate(&config, &person, &bank, false, None).unwrap();
         println!(
@@ -109,7 +116,10 @@ fn scenario_max_time() {
         );
         if decision.stop_now {
             println!();
-            assert!(!decision.terminated_early, "harus berhenti karena max_time, bukan presisi");
+            assert!(
+                !decision.terminated_early,
+                "harus berhenti karena max_time, bukan presisi"
+            );
             println!(
                 "Berhenti karena max_time=120s TERCAPAI (total_time={}s) -- min_SEM=0.1 SENGAJA \
                  dibuat sangat ketat supaya presisi tidak pernah tercapai duluan, menunjukkan \

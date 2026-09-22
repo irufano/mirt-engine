@@ -47,7 +47,9 @@ fn run(label: &str, responses: &[usize], bank: &ItemBank, group: &GroupParams) {
     let debug = debug.unwrap();
     println!(
         "{label}: respons={responses:?} -> theta={}, se={} (iterasi={:?})",
-        theta[0], se.as_slice()[0], debug.iterations
+        theta[0],
+        se.as_slice()[0],
+        debug.iterations
     );
 }
 
@@ -58,8 +60,18 @@ fn main() {
     println!("ML murni (tanpa prior) -- theta = argmax log L(theta):");
     println!();
 
-    run("Pola moderat (4 benar, 2 salah)", &[1, 0, 1, 1, 0, 1], &bank, &group);
-    run("Pola sedikit di bawah rata-rata (2 benar, 4 salah)", &[1, 0, 0, 1, 0, 0], &bank, &group);
+    run(
+        "Pola moderat (4 benar, 2 salah)",
+        &[1, 0, 1, 1, 0, 1],
+        &bank,
+        &group,
+    );
+    run(
+        "Pola sedikit di bawah rata-rata (2 benar, 4 salah)",
+        &[1, 0, 0, 1, 0, 0],
+        &bank,
+        &group,
+    );
 
     println!();
     println!("== Kasus ekstrem: semua benar ==");

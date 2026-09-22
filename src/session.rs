@@ -88,9 +88,13 @@ use crate::stopping_rule::{self, CustomStop, StopDecision, StoppingConfig};
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SessionConfig {
+    /// Konfigurasi theta awal (Fase 1).
     pub initial_theta: InitialThetaConfig,
+    /// Konfigurasi seleksi item (Fase 2).
     pub selection: SelectionConfig,
+    /// Konfigurasi estimasi kemampuan (Fase 3).
     pub estimation: EstimationConfig,
+    /// Konfigurasi stopping rule (Fase 4).
     pub stopping: StoppingConfig,
     /// `None` — exposure control nonaktif (padanan `mirtCAT` `exposure_type
     /// == 'none'`, lih. catatan modul `exposure_control`).
@@ -115,10 +119,15 @@ pub struct SessionConfig {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum StepDebug {
+    /// Jejak debug seleksi item (Fase 2).
     Selection(ItemSelectionDebug),
+    /// Jejak debug estimasi kemampuan (Fase 3).
     Estimation(AbilityEstimationDebug),
+    /// Jejak debug stopping rule (Fase 4).
     Stopping(stopping_rule::StoppingRuleDebug),
+    /// Jejak debug exposure control (Fase 5).
     Exposure(ExposureControlDebug),
+    /// Jejak debug content balancing (Fase 6).
     ContentBalancing(ContentBalancingDebug),
 }
 
@@ -390,10 +399,12 @@ impl McatSession {
         McatResult::from_person(&self.person, &self.last_stop_decision)
     }
 
+    /// State peserta saat ini (`theta`, SE, item terjawab, dst.).
     pub fn person(&self) -> &PersonState {
         &self.person
     }
 
+    /// Konfigurasi sesi ini.
     pub fn config(&self) -> &SessionConfig {
         &self.config
     }
@@ -405,6 +416,7 @@ impl McatSession {
         self.pending_item
     }
 
+    /// Keputusan stopping rule terakhir yang dievaluasi.
     pub fn last_stop_decision(&self) -> &StopDecision {
         &self.last_stop_decision
     }
@@ -415,6 +427,8 @@ impl McatSession {
         self.last_stop_decision.stop_now
     }
 
+    /// Jejak debug theta awal (Fase 1) — `Some` hanya bila
+    /// `SessionConfig::debug == true`.
     pub fn initial_theta_debug(&self) -> Option<&InitialThetaDebug> {
         self.initial_theta_debug.as_ref()
     }

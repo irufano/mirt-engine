@@ -12,24 +12,27 @@
 //!   **hanya memanggil `mirt::fscores()`** langsung — ground truth
 //!   algoritma sesungguhnya ada di `mirt/R/fscores.internal.R`, bukan di
 //!   `mirtCAT`.
-//! - `Eap { qmc }`: grid-based & QMC-based ([`eap`]). Default `method`
-//!   (`Method::default()`) adalah [`Map`](Method::Map), persis default
-//!   `mirtCAT` (`criteria_estimator <- 'MAP'`).
+//! - `Eap { qmc }`: grid-based & QMC-based (modul privat `eap`). Default
+//!   `method` (`Method::default()`) adalah [`Map`](Method::Map), persis
+//!   default `mirtCAT` (`criteria_estimator <- 'MAP'`).
 //! - `Map`: optimisasi `log L(theta) + log dmvnorm(theta; gmeans, gcov)`
-//!   ([`map`]).
-//! - `Ml`: optimisasi `log L(theta)` murni, tanpa prior ([`ml`]) — divergen
-//!   ke `+-infinity` pada pola respons ekstrem (diverifikasi empiris
-//!   identik dengan `mirt::fscores(method='ML')` sungguhan).
+//!   (modul privat `map`).
+//! - `Ml`: optimisasi `log L(theta)` murni, tanpa prior (modul privat `ml`)
+//!   — divergen ke `+-infinity` pada pola respons ekstrem (diverifikasi
+//!   empiris identik dengan `mirt::fscores(method='ML')` sungguhan).
 //! - `Wle`: optimisasi `log L(theta) + 0.5*log(det(info_kumulatif(theta)))`
-//!   ([`wle`]) — koreksi bias Warm (1989) digeneralisasi multidimensional.
+//!   (modul privat `wle`) — koreksi bias Warm (1989) digeneralisasi
+//!   multidimensional.
 //! - `EapSum`: EAP berbasis summed score lewat rekursi Lord & Wingersky
 //!   (1984) ([`eap_sum`]), dibatasi ke item yang **sudah dijawab** (lih.
 //!   catatan modul `eap_sum` untuk verifikasi empiris kenapa ini setara
 //!   dengan perilaku `mirt`).
-//! - `Fixed`: identity murni, tidak mengestimasi ulang ([`fixed`]).
+//! - `Fixed`: identity murni, tidak mengestimasi ulang (modul privat
+//!   `fixed`).
 //!
 //! `Ml`/`Map`/`Wle` dioptimasi lewat satu optimizer Newton-Raphson generik
-//! dengan gradien & Hessian **finite-difference** ([`optim`]) — `nlm()` R
+//! dengan gradien & Hessian **finite-difference** (modul privat `optim`) —
+//! `nlm()` R
 //! yang dipakai `mirt::MAP.mirt`/`WLE.mirt` juga tidak diberi gradien
 //! analitik (memakai turunan numerik internal secara default), jadi ini
 //! port yang setia di level algoritma (sama-sama konvergen ke optimum
@@ -64,7 +67,11 @@ pub enum Method {
     /// EAP (Expected A Posteriori). `qmc=true` memakai titik Quasi-Monte
     /// Carlo (disarankan untuk `nfact > 4`, lih. peringatan di [`estimate`]);
     /// `qmc=false` memakai grid kuadratur reguler.
-    Eap { qmc: bool },
+    Eap {
+        /// `true` -> titik Quasi-Monte Carlo; `false` -> grid kuadratur
+        /// reguler.
+        qmc: bool,
+    },
     /// MAP (Maximum A Posteriori) — default `mirtCAT`.
     #[default]
     Map,
@@ -83,6 +90,7 @@ pub enum Method {
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EstimationConfig {
+    /// Metode estimasi yang dipakai.
     pub method: Method,
     /// Jumlah titik kuadratur (grid: per-dimensi; QMC: total). `None` ->
     /// default dari tabel `nfact` ([`quadrature::default_quadpts`]) --
@@ -103,10 +111,19 @@ pub struct EstimationConfig {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AbilityEstimationDebug {
+    /// Metode yang dipakai untuk estimasi ini.
     pub method: Method,
+    /// Jumlah titik kuadratur yang dipakai — `Some` untuk `Eap`/`EapSum`,
+    /// `None` untuk method lain.
     pub n_quadrature_points: Option<usize>,
+    /// Jumlah iterasi optimizer — `Some` untuk `Ml`/`Map`/`Wle`, `None`
+    /// untuk method lain.
     pub iterations: Option<usize>,
+    /// Jejak nilai log-likelihood tiap iterasi optimizer — `Some` untuk
+    /// `Ml`/`Map`/`Wle`, `None` untuk method lain.
     pub log_likelihood_trace: Option<Vec<f64>>,
+    /// Apakah optimizer konvergen — `Some` untuk `Ml`/`Map`/`Wle`, `None`
+    /// untuk method lain.
     pub converged: Option<bool>,
 }
 
@@ -331,8 +348,11 @@ mod tests {
 
     fn bank_1item(a: f64, d: f64) -> ItemBank {
         let mut bank = ItemBank::new();
-        bank.push(Box::new(Dichotomous::m2pl(vec![a], d).unwrap()), ItemMeta::new(0))
-            .unwrap();
+        bank.push(
+            Box::new(Dichotomous::m2pl(vec![a], d).unwrap()),
+            ItemMeta::new(0),
+        )
+        .unwrap();
         bank
     }
 
@@ -361,15 +381,24 @@ mod tests {
                 ..Default::default()
             };
             let (_, debug) = estimate(&config, &person, &bank, &group).unwrap();
-            assert!(debug.is_none(), "method {method:?} harus None saat debug=false");
+            assert!(
+                debug.is_none(),
+                "method {method:?} harus None saat debug=false"
+            );
         }
     }
 
     fn bank_mixed_3items() -> ItemBank {
         let mut bank = ItemBank::new();
-        for (i, (a, d)) in [(1.0, 0.0), (1.1, -0.2), (0.9, 0.3)].into_iter().enumerate() {
-            bank.push(Box::new(Dichotomous::m2pl(vec![a], d).unwrap()), ItemMeta::new(i))
-                .unwrap();
+        for (i, (a, d)) in [(1.0, 0.0), (1.1, -0.2), (0.9, 0.3)]
+            .into_iter()
+            .enumerate()
+        {
+            bank.push(
+                Box::new(Dichotomous::m2pl(vec![a], d).unwrap()),
+                ItemMeta::new(i),
+            )
+            .unwrap();
         }
         bank
     }
@@ -527,7 +556,11 @@ mod tests {
         let group = GroupParams::standard_normal(5);
         let person = PersonState::new(5);
 
-        CAPTURED.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap().clear();
+        CAPTURED
+            .get_or_init(|| Mutex::new(Vec::new()))
+            .lock()
+            .unwrap()
+            .clear();
         let config_no_qmc = EstimationConfig {
             method: Method::Eap { qmc: false },
             quadpts: Some(3),
@@ -553,7 +586,10 @@ mod tests {
         estimate(&config_qmc, &person, &bank, &group).unwrap();
         {
             let captured = CAPTURED.get().unwrap().lock().unwrap();
-            assert!(captured.is_empty(), "qmc=true tidak boleh memicu peringatan");
+            assert!(
+                captured.is_empty(),
+                "qmc=true tidak boleh memicu peringatan"
+            );
         }
     }
 

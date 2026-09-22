@@ -29,7 +29,9 @@
 use mirtcat_engine::ability_estimation::{eap_sum_score_table, estimate};
 use mirtcat_engine::irt::Dichotomous;
 use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector};
+use mirtcat_engine::{
+    EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector,
+};
 use nalgebra::DMatrix;
 use serde_json::Value;
 use std::fs;
@@ -53,11 +55,7 @@ fn f64_array(v: &Value) -> Vec<f64> {
 
 /// `null` di JSON (Inf/NaN R, tidak direpresentasikan JSON standar) -> `None`.
 fn opt_f64_array(v: &Value) -> Vec<Option<f64>> {
-    v.as_array()
-        .unwrap()
-        .iter()
-        .map(|x| x.as_f64())
-        .collect()
+    v.as_array().unwrap().iter().map(|x| x.as_f64()).collect()
 }
 
 fn build_bank(item_params: &Value, nfact: usize) -> ItemBank {
@@ -79,7 +77,12 @@ fn build_bank(item_params: &Value, nfact: usize) -> ItemBank {
 
 fn build_group(fixture_case: &Value, nfact: usize) -> GroupParams {
     let gmeans = ThetaVector::from_vec(f64_array(&fixture_case["gmeans"]));
-    let gcov_rows: Vec<Vec<f64>> = fixture_case["gcov"].as_array().unwrap().iter().map(f64_array).collect();
+    let gcov_rows: Vec<Vec<f64>> = fixture_case["gcov"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(f64_array)
+        .collect();
     let gcov_flat: Vec<f64> = gcov_rows.iter().flatten().cloned().collect();
     let gcov = InfoMatrix::from_matrix(DMatrix::from_row_slice(nfact, nfact, &gcov_flat)).unwrap();
     GroupParams::new(gmeans, gcov).unwrap()
@@ -160,7 +163,16 @@ fn eap_matches_r_across_cases() {
             quadpts: Some(quadpts),
             ..Default::default()
         };
-        compare_method(&config, &person, &bank, &group, expected, 1e-4, 1e-3, &format!("[{name}] EAP"));
+        compare_method(
+            &config,
+            &person,
+            &bank,
+            &group,
+            expected,
+            1e-4,
+            1e-3,
+            &format!("[{name}] EAP"),
+        );
     }
 }
 
@@ -179,7 +191,16 @@ fn map_matches_r_across_cases() {
             method: Method::Map,
             ..Default::default()
         };
-        compare_method(&config, &person, &bank, &group, expected, 1e-4, 1e-3, &format!("[{name}] MAP"));
+        compare_method(
+            &config,
+            &person,
+            &bank,
+            &group,
+            expected,
+            1e-4,
+            1e-3,
+            &format!("[{name}] MAP"),
+        );
     }
 }
 
@@ -202,7 +223,16 @@ fn ml_matches_r_for_well_identified_cases() {
         method: Method::Ml,
         ..Default::default()
     };
-    compare_method(&config, &person, &bank, &group, expected, 1e-3, 1e-2, &format!("[{name}] ML"));
+    compare_method(
+        &config,
+        &person,
+        &bank,
+        &group,
+        expected,
+        1e-3,
+        1e-2,
+        &format!("[{name}] ML"),
+    );
 }
 
 /// Kasus ML yang divergen/mendekati batas `max_theta` di R (dites lewat
@@ -243,7 +273,16 @@ fn wle_matches_r_within_looser_tolerance() {
             method: Method::Wle,
             ..Default::default()
         };
-        compare_method(&config, &person, &bank, &group, expected, 1e-2, 5e-2, &format!("[{name}] WLE"));
+        compare_method(
+            &config,
+            &person,
+            &bank,
+            &group,
+            expected,
+            1e-2,
+            5e-2,
+            &format!("[{name}] WLE"),
+        );
     }
 }
 
@@ -264,7 +303,16 @@ fn eap_sum_matches_r_within_looser_tolerance() {
             quadpts: Some(quadpts),
             ..Default::default()
         };
-        compare_method(&config, &person, &bank, &group, expected, 1e-2, 5e-2, &format!("[{name}] EAPsum"));
+        compare_method(
+            &config,
+            &person,
+            &bank,
+            &group,
+            expected,
+            1e-2,
+            5e-2,
+            &format!("[{name}] EAPsum"),
+        );
     }
 }
 
@@ -290,8 +338,18 @@ fn eap_sum_full_score_table_matches_r() {
         .iter()
         .map(|v| v.as_u64().unwrap())
         .collect();
-    let theta_rows: Vec<Vec<f64>> = table["theta"].as_array().unwrap().iter().map(f64_array).collect();
-    let se_rows: Vec<Vec<f64>> = table["se"].as_array().unwrap().iter().map(f64_array).collect();
+    let theta_rows: Vec<Vec<f64>> = table["theta"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(f64_array)
+        .collect();
+    let se_rows: Vec<Vec<f64>> = table["se"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(f64_array)
+        .collect();
 
     assert_eq!(rust_table.len(), sum_scores.len());
     for (i, entry) in rust_table.iter().enumerate() {

@@ -57,6 +57,7 @@ use crate::item_selection::{Criterion, ItemIndex};
 pub struct ContentCategory(pub String);
 
 impl ContentCategory {
+    /// Bungkus `name` sebagai `ContentCategory`.
     pub fn new(name: impl Into<String>) -> Self {
         Self(name.into())
     }

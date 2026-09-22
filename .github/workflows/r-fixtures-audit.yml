@@ -1,0 +1,56 @@
+name: R fixtures audit
+
+# Fase 9 checklist: audit menyeluruh -- regenerasi SELURUH fixture
+# `tests/fixtures/*.json` langsung dari `mirt`/`mirtCAT` (R) yang terpasang
+# di runner, lalu jalankan `cargo test` terhadap hasil regenerasi itu.
+# Bila fixture baru tetap lolos assertion parity Rust, tidak ada regresi;
+# bila gagal, ada drift antara versi `mirt`/`mirtCAT` terbaru dan ekspektasi
+# yang di-commit -- sinyal untuk investigasi manual, BUKAN auto-fix.
+#
+# Manual/nightly saja (bukan tiap push/PR) karena instalasi R + `mirt` +
+# `mirtCAT` dari CRAN lambat & di luar kendali versi proyek ini -- lih.
+# `.github/workflows/ci.yml` untuk gate wajib tiap push/PR.
+#
+# Fixture yang diregenerasi TIDAK di-commit balik -- job ini murni deteksi
+# regresi, bukan sumber kebenaran baru (perubahan fixture yang disengaja
+# tetap lewat commit manual seperti biasa).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *" # setiap hari, 02:17 UTC
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: regenerasi fixture R + cargo test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "release"
+
+      - name: Install paket R (mirt, mirtCAT, jsonlite)
+        run: |
+          Rscript -e 'install.packages(c("mirt", "mirtCAT", "jsonlite"), repos = "https://cloud.r-project.org")'
+
+      - name: Regenerasi seluruh fixture (Fase 0-8)
+        run: |
+          for script in tests/fixtures/generate_r_fixtures*.R; do
+            echo "::group::$script"
+            Rscript "$script"
+            echo "::endgroup::"
+          done
+
+      - name: cargo test (fixture hasil regenerasi)
+        run: cargo test --all-targets --features serde

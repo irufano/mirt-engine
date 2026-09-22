@@ -42,6 +42,7 @@ pub enum ThetaStart {
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitialThetaConfig {
+    /// Sumber theta awal (langsung/dari populasi).
     pub start: ThetaStart,
     /// Bobot per-dimensi, dipakai belakangan oleh `Trule`/`TPrule`,
     /// `Arule`/`APrule`, `Wrule`/`WPrule` (Fase 2). `None` → default

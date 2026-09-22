@@ -43,7 +43,11 @@ fn load_fixture() -> Value {
 }
 
 fn f64_array(v: &Value) -> Vec<f64> {
-    v.as_array().unwrap().iter().map(|x| x.as_f64().unwrap()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_f64().unwrap())
+        .collect()
 }
 
 /// `jsonlite` meng-`auto_unbox` array panjang 1 jadi skalar -- tangani
@@ -203,8 +207,7 @@ fn ci_session_stops_at_same_item_with_matching_classification() {
         })
         .collect();
     assert_eq!(
-        classification_str,
-        expected_classification,
+        classification_str, expected_classification,
         "klasifikasi akhir per-dimensi Rust harus persis sama dengan R"
     );
 }

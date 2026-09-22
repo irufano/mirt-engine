@@ -42,7 +42,10 @@ pub(crate) struct NewtonResult {
 /// langkah Newton tidak menaikkan nilai objektif (atau Hessian tidak negatif
 /// definit lokal), dan clamp tiap komponen `theta` ke
 /// `[-MAX_THETA, MAX_THETA]` tiap iterasi.
-pub(crate) fn maximize(objective: impl Fn(&DVector<f64>) -> f64, initial: DVector<f64>) -> NewtonResult {
+pub(crate) fn maximize(
+    objective: impl Fn(&DVector<f64>) -> f64,
+    initial: DVector<f64>,
+) -> NewtonResult {
     let n = initial.len();
     let mut theta = clamp(initial);
     let mut trace = Vec::new();

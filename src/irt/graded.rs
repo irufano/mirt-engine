@@ -48,10 +48,12 @@ impl GradedResponse {
         Ok(Self { a, d })
     }
 
+    /// Slope per dimensi.
     pub fn a(&self) -> &[f64] {
         &self.a
     }
 
+    /// Boundary kategori (terurut menurun).
     pub fn d(&self) -> &[f64] {
         &self.d
     }

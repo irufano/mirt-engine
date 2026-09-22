@@ -7,9 +7,15 @@
 //! siklus adaptif di atasnya (item selection, ability estimation, stopping
 //! rule, exposure control, content balancing — fase-fase berikutnya).
 //!
-//! Status implementasi saat ini: **Fase 8 — integrasi end-to-end
-//! (`McatSession`) & contoh Axum**. Lihat `PLAN.md` di root crate untuk peta
-//! fase lengkap.
+//! Status implementasi: **Fase 0–9 selesai** — fondasi IRT, siklus adaptif
+//! penuh (theta awal, seleksi item, estimasi kemampuan, stopping rule,
+//! exposure control, content balancing, hasil akhir), orkestrasi sesi
+//! (`McatSession`) & contoh Axum, serta hardening rilis (Fase 9: property
+//! test, benchmark, audit keamanan, dokumentasi API lengkap). Lihat
+//! `PLAN.md` di root crate untuk peta fase lengkap & `CHANGELOG.md` untuk
+//! ringkasan tiap fase.
+
+#![deny(missing_docs)]
 
 pub mod ability_estimation;
 pub mod bank;

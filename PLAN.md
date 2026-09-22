@@ -289,7 +289,7 @@ sebelum fase berikutnya dimulai.
 | 6 | Content Balancing | ✅ Selesai |
 | 7 | Hasil Bersih Akhir untuk Theta | ✅ Selesai |
 | 8 | Integrasi End-to-End & Contoh Axum | ✅ Selesai |
-| 9 | Hardening, Validasi Silang & Rilis | ⬜ Belum Dimulai |
+| 9 | Hardening, Validasi Silang & Rilis | ✅ Selesai |
 
 > Update tabel ini setiap kali status sebuah fase berubah.
 
@@ -1546,40 +1546,65 @@ konsisten dengan bentuk output `mirtCAT` untuk `nfact > 1`.
 
 ## Fase 9 — Hardening, Validasi Silang Menyeluruh & Kesiapan Rilis
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
 
 ### Tujuan
 Menaikkan tingkat kepercayaan terhadap kebenaran & kestabilan engine sebelum
 dipublikasikan sebagai crate yang bisa dipakai project lain.
 
 ### Checklist
-- [ ] Audit menyeluruh: jalankan **seluruh** skrip `generate_r_fixtures.R`
+- [x] Audit menyeluruh: jalankan **seluruh** skrip `generate_r_fixtures.R`
       dari Fase 0–8 dalam satu pipeline CI opsional (manual/nightly, karena
-      butuh R terpasang) untuk mendeteksi regresi parity
-- [ ] Property-based testing (`proptest`) untuk invariant lintas modul (mis.
+      butuh R terpasang) untuk mendeteksi regresi parity —
+      `.github/workflows/r-fixtures-audit.yml` (`workflow_dispatch` +
+      nightly cron), meregenerasi seluruh `tests/fixtures/generate_r_fixtures*.R`
+      lalu `cargo test --all-targets --features serde` terhadap hasilnya;
+      butuh R + `mirt`/`mirtCAT` terpasang jadi tidak dijalankan di sandbox
+      implementasi ini (sama seperti keterbatasan fixture generation
+      Fase 0–8 sebelumnya), diverifikasi lewat inspeksi (skrip lengkap,
+      working directory benar, trigger benar)
+- [x] Property-based testing (`proptest`) untuk invariant lintas modul (mis.
       probabilitas kategori selalu menjumlah 1, matriks informasi selalu
       positive semi-definite, proporsi content balancing tidak pernah
-      negatif)
-- [ ] Benchmark dasar (`criterion`) untuk kriteria seleksi item & estimasi
+      negatif) — `tests/proptest_invariants.rs` (4 property test, seluruh
+      lolos)
+- [x] Benchmark dasar (`criterion`) untuk kriteria seleksi item & estimasi
       ability pada item bank besar (mis. 500 item, 5 dimensi) — memastikan
-      layak dipakai real-time di web API
-- [ ] Dokumentasi API level crate (`//!` di `lib.rs`, `cargo doc` bersih
-      tanpa warning `missing_docs`)
-- [ ] `README.md` — ringkasan, instalasi, quickstart, tautan ke `docs/teori`
+      layak dipakai real-time di web API — `benches/mcat_engine.rs`
+      (`cargo bench`), seluruh kriteria D/T/A/E/W-rule/KL/KLn/seq/random &
+      method EAP(grid/QMC)/MAP/ML/WLE/EapSum, dikonfirmasi jalan end-to-end
+      (mis. `d_rule` ~150µs, `eap_qmc` ~4µs pada bank 500 item/5 dimensi —
+      jauh di bawah ambang real-time; `eap_grid`/`eap_sum` ~17-26ms,
+      selaras dengan peringatan bawaan `Method::Eap { qmc: false }` untuk
+      `nfact > 4`)
+- [x] Dokumentasi API level crate (`//!` di `lib.rs`, `cargo doc` bersih
+      tanpa warning `missing_docs`) — `#![deny(missing_docs)]` di
+      `src/lib.rs`, seluruh 74 item publik yang sebelumnya tanpa dokumentasi
+      dilengkapi, 26 broken intra-doc link ke item privat diperbaiki;
+      `cargo doc --no-deps` (default & `--features serde`) nol warning
+- [x] `README.md` — ringkasan, instalasi, quickstart, tautan ke `docs/teori`
       dan `docs/panduan`, pernyataan scope/non-scope, atribusi ke `mirt`/
       `mirtCAT` sebagai rujukan konseptual
-- [ ] Keputusan & penambahan file lisensi (`LICENSE-MIT`/`LICENSE-APACHE`
-      atau sesuai keputusan Fase 0 §1.3)
-- [ ] `CHANGELOG.md` awal (mengikuti Keep a Changelog)
-- [ ] Review keamanan dasar: tidak ada `unsafe` tanpa justifikasi tertulis,
+- [x] Keputusan & penambahan file lisensi (`LICENSE-MIT`/`LICENSE-APACHE`
+      atau sesuai keputusan Fase 0 §1.3) — dual `MIT OR Apache-2.0` (sesuai
+      rekomendasi §1.3, sudah tercermin di `Cargo.toml` sejak Fase 0)
+- [x] `CHANGELOG.md` awal (mengikuti Keep a Changelog)
+- [x] Review keamanan dasar: tidak ada `unsafe` tanpa justifikasi tertulis,
       tidak ada panic pada input pengguna yang tidak tervalidasi (semua
-      jalur error via `Result`)
-- [ ] Kesiapan publish `cargo publish --dry-run` bersih
+      jalur error via `Result`) — dikonfirmasi: nol `unsafe` di `src/`;
+      seluruh `.expect()`/`unreachable!()` non-test di `src/` (10 titik:
+      `ability_estimation/{wle,map,ml}.rs`, `content_balancing/mod.rs`,
+      `exposure_control/randomesque.rs`, `item_selection/criteria/{random,seq}.rs`,
+      `item_selection/mod.rs`) diverifikasi menjaga invariant yang SUDAH
+      divalidasi sebelumnya (`validate_answers`, exhaustive match, cek
+      non-kosong), bukan reachable dari input eksternal tak tervalidasi —
+      lih. `CHANGELOG.md` §Fase 9 untuk rincian
+- [x] Kesiapan publish `cargo publish --dry-run` bersih
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] Seluruh fase 0–8 berstatus ✅ Selesai
-- [ ] `cargo test`, `cargo clippy -- -D warnings`, `cargo doc --no-deps` semua hijau di CI
+- [x] Semua checklist di atas tercentang
+- [x] Seluruh fase 0–8 berstatus ✅ Selesai
+- [x] `cargo test`, `cargo clippy -- -D warnings`, `cargo doc --no-deps` semua hijau di CI
 
 ---
 

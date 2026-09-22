@@ -10,15 +10,21 @@ use crate::theta::{InfoMatrix, ThetaVector};
 /// item, dan kategori konten (dipakai content balancing, Fase 6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemMeta {
+    /// Id item (indeks/identitas eksternal, terpisah dari indeks posisi di
+    /// `ItemBank`).
     pub id: usize,
+    /// Kategori konten item, `None` bila tidak dipakai (content balancing
+    /// nonaktif).
     pub content: Option<String>,
 }
 
 impl ItemMeta {
+    /// `ItemMeta` tanpa kategori konten.
     pub fn new(id: usize) -> Self {
         Self { id, content: None }
     }
 
+    /// `ItemMeta` dengan kategori konten (dipakai content balancing).
     pub fn with_content(id: usize, content: impl Into<String>) -> Self {
         Self {
             id,
@@ -37,6 +43,7 @@ pub struct ItemBank {
 }
 
 impl ItemBank {
+    /// Bank kosong (belum ada item, `nfact()` masih `None`).
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
@@ -68,10 +75,12 @@ impl ItemBank {
         Ok(())
     }
 
+    /// Jumlah item di bank.
     pub fn len(&self) -> usize {
         self.items.len()
     }
 
+    /// `true` bila bank belum berisi item.
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
@@ -81,14 +90,17 @@ impl ItemBank {
         self.nfact
     }
 
+    /// Item pada posisi `index`, `None` bila di luar jangkauan.
     pub fn item(&self, index: usize) -> Option<&dyn ItemResponseModel> {
         self.items.get(index).map(|b| b.as_ref())
     }
 
+    /// Metadata item pada posisi `index`, `None` bila di luar jangkauan.
     pub fn meta(&self, index: usize) -> Option<&ItemMeta> {
         self.meta.get(index)
     }
 
+    /// Iterator atas seluruh item di bank, terurut posisi.
     pub fn iter(&self) -> impl Iterator<Item = &dyn ItemResponseModel> {
         self.items.iter().map(|b| b.as_ref())
     }
@@ -131,14 +143,17 @@ impl GroupParams {
         }
     }
 
+    /// `nfact` populasi (dari `gmeans`/`gcov`, sudah dijamin konsisten).
     pub fn nfact(&self) -> usize {
         self.gmeans.nfact()
     }
 
+    /// Rata-rata populasi.
     pub fn gmeans(&self) -> &ThetaVector {
         &self.gmeans
     }
 
+    /// Matriks kovarians populasi.
     pub fn gcov(&self) -> &InfoMatrix {
         &self.gcov
     }

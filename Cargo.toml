@@ -5,6 +5,7 @@ edition = "2021"
 description = "Multidimensional Computerized Adaptive Testing (MCAT) engine, mengacu pada mirt/mirtCAT (R)"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/irufano/mirtcat-engine"
+readme = "README.md"
 
 [dependencies]
 log = "0.4"
@@ -15,6 +16,8 @@ thiserror = "1"
 
 [dev-dependencies]
 approx = "0.5"
+criterion = "0.5"
+proptest = "1"
 # axum/tokio/tower/http-body-util: HANYA dipakai contoh `examples/08_axum_api`
 # (Fase 8) & test HTTP-nya (`tests/integration_axum.rs`) -- sengaja
 # dev-dependencies, bukan `[dependencies]`, supaya konsumen library
@@ -55,3 +58,7 @@ required-features = ["serde"]
 name = "integration_axum"
 path = "tests/integration_axum.rs"
 required-features = ["serde"]
+
+[[bench]]
+name = "mcat_engine"
+harness = false

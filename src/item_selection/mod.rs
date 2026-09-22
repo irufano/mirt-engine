@@ -5,21 +5,23 @@
 //! lih. `PLAN.md` §Fase 2 "Riset yang sudah dilakukan" untuk rincian &
 //! rujukan akademik tiap kriteria:
 //!
-//! - `Drule`/`DPrule`: `det(total_info)` ([`criteria::d_rule`]).
+//! - `Drule`/`DPrule`: `det(total_info)` (modul privat `criteria::d_rule`).
 //! - `Trule`/`TPrule`: `sum_i weights[i] * total_info[i,i]` (trace berbobot,
-//!   diagonal saja — [`criteria::t_rule`]).
+//!   diagonal saja — modul privat `criteria::t_rule`).
 //! - `Arule`/`APrule`: `-sum_i weights[i] * pseudo_inverse(total_info)[i,i]`
 //!   (pseudo-invers, bukan invers biasa — matriks informasi dari satu item
-//!   dikotomus tunggal selalu rank 1, umum singular di awal tes —
-//!   [`criteria::a_rule`]).
-//! - `Erule`/`EPrule`: `min_eigenvalue(total_info)` ([`criteria::e_rule`]).
+//!   dikotomus tunggal selalu rank 1, umum singular di awal tes — modul
+//!   privat `criteria::a_rule`).
+//! - `Erule`/`EPrule`: `min_eigenvalue(total_info)` (modul privat
+//!   `criteria::e_rule`).
 //! - `Wrule`/`WPrule`: `weights' * total_info * weights` (bentuk kuadratik
-//!   penuh, beda dari `Trule` yang cuma diagonal — [`criteria::w_rule`]).
+//!   penuh, beda dari `Trule` yang cuma diagonal — modul privat
+//!   `criteria::w_rule`).
 //! - `KL`/`KLn`: Kullback-Leibler pointwise pada item kandidat sendiri
-//!   (bukan kumulatif), `KLn` memakai `delta * sqrt(n_answered)`
-//!   ([`criteria::kl`]).
-//! - `seq`/`random`: baseline non-informasi ([`criteria::seq`],
-//!   [`criteria::random`]).
+//!   (bukan kumulatif), `KLn` memakai `delta * sqrt(n_answered)` (modul
+//!   privat `criteria::kl`).
+//! - `seq`/`random`: baseline non-informasi (modul privat `criteria::seq`,
+//!   `criteria::random`).
 //!
 //! `total_info` untuk kriteria D/T/A/E/W-rule = `person.info_thetas(bank)` +
 //! info Fisher item kandidat pada `person.theta()`, ditambah
@@ -71,26 +73,53 @@ pub enum Criterion {
     /// Baseline exposure-neutral: pilih uniform random dari kandidat.
     Random,
     /// Kullback-Leibler pointwise (Chang & Ying, 1996), interval `delta` tetap.
-    Kl { delta: f64 },
+    Kl {
+        /// Setengah lebar interval KL, tetap (tidak diskalakan).
+        delta: f64,
+    },
     /// Sama seperti `Kl`, tapi `delta` diskalakan `delta * sqrt(n_answered)`.
-    KlN { delta: f64 },
+    KlN {
+        /// Setengah lebar interval KL sebelum diskalakan `sqrt(n_answered)`.
+        delta: f64,
+    },
     /// D-optimality: maksimalkan determinan info Fisher kumulatif.
-    DRule { prior: bool },
+    DRule {
+        /// `true` -> tambahkan `inverse(gcov)` ke info Fisher kumulatif
+        /// (varian `*Prule`).
+        prior: bool,
+    },
     /// Maksimalkan trace (potensial berbobot) info Fisher kumulatif.
-    TRule { prior: bool },
+    TRule {
+        /// `true` -> tambahkan `inverse(gcov)` ke info Fisher kumulatif
+        /// (varian `*Prule`).
+        prior: bool,
+    },
     /// Minimalkan trace (potensial berbobot) kovarians asimtotik — nilai
     /// kriteria sudah dinegasikan agar konsisten dengan argmax.
-    ARule { prior: bool },
+    ARule {
+        /// `true` -> tambahkan `inverse(gcov)` ke info Fisher kumulatif
+        /// (varian `*Prule`).
+        prior: bool,
+    },
     /// Maksimalkan eigenvalue minimum info Fisher kumulatif.
-    ERule { prior: bool },
+    ERule {
+        /// `true` -> tambahkan `inverse(gcov)` ke info Fisher kumulatif
+        /// (varian `*Prule`).
+        prior: bool,
+    },
     /// Maksimalkan bentuk kuadratik berbobot kustom `weights' * I * weights`.
-    WRule { prior: bool },
+    WRule {
+        /// `true` -> tambahkan `inverse(gcov)` ke info Fisher kumulatif
+        /// (varian `*Prule`).
+        prior: bool,
+    },
 }
 
 /// Konfigurasi seleksi item.
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SelectionConfig {
+    /// Kriteria seleksi item yang dipakai.
     pub criterion: Criterion,
     /// Bobot per-dimensi, dipakai `TRule`/`ARule`/`WRule` (+ varian `prior`).
     /// `None` → default `vec![1.0; nfact]`. Diabaikan kriteria lain.
@@ -223,14 +252,17 @@ impl PersonState {
         }
     }
 
+    /// `nfact` peserta (dari `theta`).
     pub fn nfact(&self) -> usize {
         self.theta.nfact()
     }
 
+    /// Estimasi `theta` saat ini.
     pub fn theta(&self) -> &ThetaVector {
         &self.theta
     }
 
+    /// SE `theta` saat ini.
     pub fn se(&self) -> &SEVector {
         &self.se
     }
@@ -275,10 +307,13 @@ impl PersonState {
         &self.thetas_se_history
     }
 
+    /// Jumlah item yang sudah dijawab.
     pub fn n_answered(&self) -> usize {
         self.answered_items.len()
     }
 
+    /// Index item (`ItemBank`) yang sudah dijawab, terurut sesuai urutan
+    /// penyajian.
     pub fn answered_items(&self) -> &[ItemIndex] {
         &self.answered_items
     }
@@ -339,6 +374,7 @@ pub struct ItemSelectionDebug {
     /// Nilai kriteria mentah tiap kandidat (index item bank, nilai kriteria).
     /// Kosong untuk `Seq`/`Random` (tidak ada nilai kriteria untuk keduanya).
     pub candidate_scores: Vec<(ItemIndex, f64)>,
+    /// Item yang akhirnya dipilih.
     pub chosen: ItemIndex,
     /// Snapshot `info_thetas` sebelum item terpilih ditambahkan — `Some`
     /// hanya untuk kriteria D/T/A/E/W-rule.

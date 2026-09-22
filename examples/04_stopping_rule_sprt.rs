@@ -55,7 +55,11 @@ fn run_scenario(name: &str, responses: &[usize], bank: &ItemBank) {
     };
 
     println!("== Skenario: {name} ==");
-    println!("theta_lower={:?} theta_upper={:?} alpha=beta=0.05", lower.as_slice(), upper.as_slice());
+    println!(
+        "theta_lower={:?} theta_upper={:?} alpha=beta=0.05",
+        lower.as_slice(),
+        upper.as_slice()
+    );
 
     let mut person = PersonState::new(2);
     for (k, &response) in responses.iter().enumerate() {
@@ -72,7 +76,10 @@ fn run_scenario(name: &str, responses: &[usize], bank: &ItemBank) {
         );
         if decision.stop_now {
             if decision.terminated_early {
-                println!("-> keputusan SPRT tercapai: {}", label(decision.classification[0]));
+                println!(
+                    "-> keputusan SPRT tercapai: {}",
+                    label(decision.classification[0])
+                );
             } else {
                 println!("-> item bank habis TANPA keputusan SPRT tercapai (LL_diff tidak pernah keluar batas [a, b])");
             }

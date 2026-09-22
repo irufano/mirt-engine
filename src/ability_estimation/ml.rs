@@ -148,9 +148,11 @@ mod tests {
         for (i, &r) in responses.iter().enumerate() {
             person.record_answer(i, r);
         }
-        let off_center_group =
-            GroupParams::new(ThetaVector::from_vec(vec![3.0]), crate::theta::InfoMatrix::identity(1))
-                .unwrap();
+        let off_center_group = GroupParams::new(
+            ThetaVector::from_vec(vec![3.0]),
+            crate::theta::InfoMatrix::identity(1),
+        )
+        .unwrap();
         let ml_result = estimate(&person, &bank, &off_center_group).unwrap();
         let map_result = map::estimate(&person, &bank, &off_center_group).unwrap();
         // MAP tertarik ke gmeans=3.0 oleh prior sempit (var=1); ML sama

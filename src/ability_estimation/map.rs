@@ -67,8 +67,11 @@ mod tests {
 
     fn bank_1item(a: f64, d: f64) -> ItemBank {
         let mut bank = ItemBank::new();
-        bank.push(Box::new(Dichotomous::m2pl(vec![a], d).unwrap()), ItemMeta::new(0))
-            .unwrap();
+        bank.push(
+            Box::new(Dichotomous::m2pl(vec![a], d).unwrap()),
+            ItemMeta::new(0),
+        )
+        .unwrap();
         bank
     }
 
@@ -80,8 +83,7 @@ mod tests {
 
         let narrow_group =
             GroupParams::new(ThetaVector::zeros(1), InfoMatrix::identity(1)).unwrap();
-        let wide_cov =
-            InfoMatrix::from_matrix(DMatrix::from_row_slice(1, 1, &[100.0])).unwrap();
+        let wide_cov = InfoMatrix::from_matrix(DMatrix::from_row_slice(1, 1, &[100.0])).unwrap();
         let wide_group = GroupParams::new(ThetaVector::zeros(1), wide_cov).unwrap();
 
         let narrow_result = estimate(&person, &bank, &narrow_group).unwrap();

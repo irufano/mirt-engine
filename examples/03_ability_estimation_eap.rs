@@ -49,7 +49,8 @@ fn main() {
         ..Default::default()
     };
     let t0 = Instant::now();
-    let ((theta_grid, se_grid), debug_grid) = estimate(&config_grid, &person, &bank, &group).unwrap();
+    let ((theta_grid, se_grid), debug_grid) =
+        estimate(&config_grid, &person, &bank, &group).unwrap();
     let dt_grid = t0.elapsed();
     println!("  theta = {:?}", theta_grid.as_slice());
     println!("  se    = {:?}", se_grid.as_slice());

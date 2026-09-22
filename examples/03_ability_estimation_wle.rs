@@ -31,7 +31,13 @@ fn build_bank() -> ItemBank {
     bank
 }
 
-fn run(method_name: &str, method: Method, responses: &[usize], bank: &ItemBank, group: &GroupParams) {
+fn run(
+    method_name: &str,
+    method: Method,
+    responses: &[usize],
+    bank: &ItemBank,
+    group: &GroupParams,
+) {
     let mut person = PersonState::new(1);
     for (idx, &r) in responses.iter().enumerate() {
         person.record_answer(idx, r);
@@ -41,7 +47,11 @@ fn run(method_name: &str, method: Method, responses: &[usize], bank: &ItemBank, 
         ..Default::default()
     };
     let ((theta, se), _) = estimate(&config, &person, bank, group).unwrap();
-    println!("  {method_name}: theta={}, se={}", theta[0], se.as_slice()[0]);
+    println!(
+        "  {method_name}: theta={}, se={}",
+        theta[0],
+        se.as_slice()[0]
+    );
 }
 
 fn main() {

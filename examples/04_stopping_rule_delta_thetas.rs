@@ -59,7 +59,10 @@ fn main() {
         let delta_str = if debug.delta_theta_values.is_empty() {
             "(belum ada previous_theta)".to_string()
         } else {
-            format!("[{:.4}, {:.4}]", debug.delta_theta_values[0], debug.delta_theta_values[1])
+            format!(
+                "[{:.4}, {:.4}]",
+                debug.delta_theta_values[0], debug.delta_theta_values[1]
+            )
         };
         deltas_printed.push(delta_str.clone());
         println!(
