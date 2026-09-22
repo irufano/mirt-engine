@@ -1090,7 +1090,60 @@ mode yang didukung `mirtCAT`: Sympson–Hetter (`'SH'`) dan top-*n* random
 
 ## Fase 6 — Content Balancing pada MCAT
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
+
+> **Update (2026-09-22)**: perilaku diverifikasi langsung terhadap source
+> `mirtCAT` 1.14 terpasang (`getMethod("initialize", "Design")`,
+> `getFromNamespace("findNextCATItem", "mirtCAT")`) — bukan hanya dibaca
+> dari sketsa `PLAN.md` di bawah. Enam temuan penting:
+> 1. **`content_prop` WAJIB menjumlah persis 1** (toleransi `1e-6`) —
+>    `if (!closeEnough(sum(design$content_prop)-1,-1e-6,1e-6))
+>    stop("content_prop does not sum to 1")`. Sketsa awal di bawah menduga
+>    ini fleksibel ("tidak wajib persis 1.0") — **keliru**, dikoreksi:
+>    `ContentBalancingConfig::new` memvalidasi sum dengan toleransi yang
+>    sama.
+> 2. **Hanya `Criterion::Seq` yang dilarang**, BUKAN `Criterion::Random` —
+>    `Design$initialize()`: `if (use_content && criteria == "seq")
+>    stop("content designs are not supported for seq criteria")`.
+>    `findNextCATItem()` punya cabang content-balancing terpisah (duplikat
+>    kode, bukan bug) di dalam blok `criteria == "random"`, fungsional
+>    setara "sempitkan ke kategori prioritas, fallback ke pool penuh bila
+>    kategori itu habis" — sama seperti kriteria berskor. Direplikasi lewat
+>    `ContentBalancingConfig::validate_with_criterion()`.
+> 3. **Urutan kerja nyata `findNextCATItem()`**: `crit`/`index` (skor
+>    SELURUH kandidat belum dijawab) dihitung dulu, BARU disempitkan
+>    berdasar kategori, BARU exposure control jalan di atas hasil sempitan.
+>    Karena skor tiap kandidat independen terhadap kandidat lain,
+>    menyempitkan pool `ItemIndex` SEBELUM ranking (urutan
+>    `narrow_candidates()` di modul ini) menghasilkan nilai numerik identik
+>    dengan menyempitkan SESUDAH ranking (urutan R) — dibuktikan lewat
+>    replay fixture R (kecocokan EKSAK item demi item, bukan cuma
+>    keanggotaan set seperti Fase 5, karena skenario fixture deterministik
+>    penuh: kriteria `Drule` tanpa exposure control).
+> 4. **Kategori direindeks ke urutan `factor()` (alfabetis)**, tie-break
+>    `which.max(dif)` R = "kategori pertama" pada urutan itu — sama persis
+>    pola `argmax` yang sudah ada di `item_selection::argmax`.
+> 5. **`ItemMeta.content: Option<String>` (`src/bank.rs`) sudah disiapkan
+>    sebelumnya untuk fase ini**, tapi `ContentBalancingConfig` SENGAJA
+>    tetap decoupled dari `ItemBank` (pola sama seperti
+>    `exposure_control::ExposureControlConfig`) — `category_per_item`
+>    dikonstruksi eksplisit oleh pemanggil (nanti `McatSession` Fase 8,
+>    dari `bank.meta(i).content`).
+> 6. **Kategori tanpa entri `target_prop` → error saat konstruksi**
+>    (deviasi sengaja dari opsi "(atau default 0)" di sketsa awal —
+>    mencegah typo nama kategori bocor jadi target 0 yang tidak disengaja).
+>
+> Fixture R (`tests/fixtures/content_balancing.json`, dihasilkan via
+> `Rscript tests/fixtures/generate_r_fixtures_content_balancing.R`)
+> mencakup dua skenario deterministik penuh (kriteria `Drule`,
+> `exposure_type="none"`, tanpa RNG selain `local_pattern`): `main`
+> (content_prop 50/50, kedua kategori cukup item) dan `fallback` (satu
+> kategori cuma 1 item, kehabisan di tengah sesi). Keduanya dicocokkan
+> EKSAK item demi item lewat replay `narrow_candidates -> select_next_item`
+> di `tests/integration_content_balancing.rs` (3 test). `cargo test` (220
+> test: 193 unit + 27 integrasi lintas 7 file, termasuk 12 test unit baru
+> `content_balancing`) & `cargo clippy --all-targets -- -D warnings`
+> hijau.
 
 ### Tujuan
 Menjaga proporsi kategori konten item yang disajikan mendekati target yang
@@ -1140,37 +1193,37 @@ seleksi item.
 - Validasi silang dengan `item_selection::Criterion::Seq` → error `MirtCatError::ContentBalancingIncompatibleWithSeq` saat kedua config digabung.
 
 ### Checklist Implementasi
-- [ ] `ContentCategory`, `ContentBalancingConfig` (+ validasi kategori & proporsi)
-- [ ] Perhitungan proporsi empiris dari item terjawab (semua kategori selalu muncul walau 0)
-- [ ] Logika pemilihan kategori "paling kurang jatah" (`argmax(target - empirical)`)
-- [ ] `narrow_candidates()` dengan fallback ke pool penuh saat kategori target habis
-- [ ] Validasi larangan kombinasi dengan `Criterion::Seq`
-- [ ] Dukungan debug trace opsional (`ContentBalancingConfig::debug`, default `false`) → `Option<ContentBalancingDebug>` (proporsi empiris & defisit tiap kategori, kategori terpilih, status fallback)
+- [x] `ContentCategory`, `ContentBalancingConfig` (+ validasi kategori & proporsi)
+- [x] Perhitungan proporsi empiris dari item terjawab (semua kategori selalu muncul walau 0)
+- [x] Logika pemilihan kategori "paling kurang jatah" (`argmax(target - empirical)`)
+- [x] `narrow_candidates()` dengan fallback ke pool penuh saat kategori target habis
+- [x] Validasi larangan kombinasi dengan `Criterion::Seq`
+- [x] Dukungan debug trace opsional (`ContentBalancingConfig::debug`, default `false`) → `Option<ContentBalancingDebug>` (proporsi empiris & defisit tiap kategori, kategori terpilih, status fallback)
 
 ### Checklist Unit Test
-- [ ] Kategori yang belum pernah terjawab tetap dihitung 0 dalam proporsi empiris (bukan hilang dari perhitungan)
-- [ ] Kategori dengan defisit target terbesar dipilih sebagai prioritas (kasus 3 kategori dengan defisit berbeda)
-- [ ] Fallback ke pool penuh saat kategori prioritas kehabisan item kandidat
-- [ ] Konstruksi `ContentBalancingConfig` bersama `Criterion::Seq` menghasilkan error
-- [ ] Urutan pipeline: hasil `narrow_candidates()` dipakai sebagai input exposure control (diuji via integrasi modul, memastikan urutan panggilan benar)
-- [ ] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(ContentBalancingDebug)` terisi (proporsi empiris cocok hitungan manual) dan tidak mengubah pool kandidat yang dikembalikan
+- [x] Kategori yang belum pernah terjawab tetap dihitung 0 dalam proporsi empiris (bukan hilang dari perhitungan)
+- [x] Kategori dengan defisit target terbesar dipilih sebagai prioritas (kasus 3 kategori dengan defisit berbeda)
+- [x] Fallback ke pool penuh saat kategori prioritas kehabisan item kandidat
+- [x] Konstruksi `ContentBalancingConfig` bersama `Criterion::Seq` menghasilkan error
+- [x] Urutan pipeline: hasil `narrow_candidates()` dipakai sebagai input exposure control (diuji via integrasi modul, memastikan urutan panggilan benar) — `narrowed_pool_composes_directly_with_rank_candidates`
+- [x] `debug=false` → elemen ke-2 `None`; `debug=true` → `Some(ContentBalancingDebug)` terisi (proporsi empiris cocok hitungan manual) dan tidak mengubah pool kandidat yang dikembalikan
 
 ### Checklist Integration Test
-- [ ] Fixture R: sesi dengan `content` & `content_prop` tertentu (mis. 2 kategori, target 50/50) pada item bank 2D di mana kategori memetakan ke dimensi berbeda → catat proporsi realisasi tiap kategori sepanjang sesi dari `mirtCAT`
-- [ ] Bandingkan proporsi realisasi & urutan kategori yang diprioritaskan tiap langkah, Rust vs R
-- [ ] Fixture R: kasus kategori kehabisan item → verifikasi fallback (tidak error, kembali ke pool penuh) sama antara Rust & R
+- [x] Fixture R: sesi dengan `content` & `content_prop` tertentu (2 kategori, target 50/50) pada item bank 2D di mana kategori memetakan ke dimensi berbeda → skenario `main`, `tests/fixtures/generate_r_fixtures_content_balancing.R`
+- [x] Bandingkan urutan item & kategori yang diprioritaskan tiap langkah, Rust vs R — deterministik penuh (kriteria `Drule`, tanpa exposure control), jadi dicocokkan EKSAK item demi item (lebih kuat dari sekadar proporsi realisasi) — `main_scenario_matches_r_item_sequence_exactly`
+- [x] Fixture R: kasus kategori kehabisan item → verifikasi fallback (tidak error, kembali ke pool penuh) sama antara Rust & R — skenario `fallback`, `fallback_scenario_matches_r_item_sequence_exactly_and_never_errors` + `fallback_scenario_actually_exercises_the_fallback_path`
 
 ### Checklist Example Script
-- [ ] `examples/06_content_balancing.rs` — simulasi sesi dengan target 50/50 dua kategori, cetak proporsi realisasi tiap N item untuk menunjukkan konvergensi ke target
+- [x] `examples/06_content_balancing.rs` — simulasi sesi dengan target 50/50 dua kategori, cetak proporsi realisasi tiap N item untuk menunjukkan konvergensi ke target
 
 ### Checklist Dokumentasi
-- [ ] `docs/teori/06-content-balancing.md` — algoritma penyeimbangan proporsi, kaitannya dengan dimensi laten pada MCAT, referensi akademik
-- [ ] `docs/panduan/06-content-balancing.md` — cara mendefinisikan kategori & target proporsi, catatan larangan kombinasi dengan `seq`
+- [x] `docs/teori/06-content-balancing.md` — algoritma penyeimbangan proporsi, kaitannya dengan dimensi laten pada MCAT, referensi akademik
+- [x] `docs/panduan/06-content-balancing.md` — cara mendefinisikan kategori & target proporsi, catatan larangan kombinasi dengan `seq`
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine content_balancing` hijau
-- [ ] Parity proporsi realisasi dengan fixture R terverifikasi
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test` (220 test: 193 unit termasuk 12 `content_balancing`, 27 integrasi termasuk 3 `integration_content_balancing`) & `cargo clippy --all-targets -- -D warnings` hijau; `cargo fmt --check` bersih untuk seluruh file yang disentuh Fase 6 (`src/content_balancing/mod.rs`, `src/lib.rs`, `src/error.rs`, `tests/integration_content_balancing.rs`, `examples/06_content_balancing.rs`) -- sisa diff `cargo fmt --check` di file Fase 3/4 lama sudah ada SEBELUM Fase 6, di luar scope perubahan ini
+- [x] Parity urutan item & fallback dengan fixture R terverifikasi EKSAK (lih. Checklist Integration Test)
 
 ---
 

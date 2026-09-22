@@ -88,15 +88,24 @@ mode untuk alasan lengkap):
    sejauh ini, sebelum item ini dipilih) — dipakai mode `Randomesque`
    untuk mengindeks posisi.
 
-## Peringatan: digabung dengan content balancing (Fase 6)
+## Digabung dengan content balancing (Fase 6)
 
-`mirtCAT` menjalankan content balancing (filter kandidat berdasarkan
-target proporsi konten) SEBELUM exposure control (`findNextCATItem.R`).
+`content_balancing::narrow_candidates()` (Fase 6, lih.
+`docs/panduan/06-content-balancing.md`) beroperasi SEBELUM exposure
+control dalam pipeline — sisipkan sebelum `rank_candidates`:
+
+```rust
+let (narrowed, _) = narrow_candidates(&cb_config, person.answered_items(), &candidates)?;
+let scores = rank_candidates(&sel_config, &narrowed, &person, &bank, &group)?;
+let (chosen, _) = select_with_exposure(&exp_config, &scores, person.n_answered(), &mut valid_items, &mut rng)?;
+```
+
 Bila kombinasi filter content + exposure sangat ketat, kandidat tersisa
 bisa menyusut drastis di beberapa langkah — waspadai risiko "kehabisan
 item" (lih. `select_with_exposure()` mengembalikan `Err` eksplisit bila
-`candidate_scores` kosong, bukan panic). Crate ini belum mengimplementasikan
-Fase 6; peringatan ini disiapkan untuk integrasi nanti.
+`candidate_scores` kosong, bukan panic; `narrow_candidates()` sendiri
+tidak pernah menghasilkan pool kosong, lih. fallback di
+`docs/panduan/06-content-balancing.md`).
 
 ## Peta dokumen per-mode
 

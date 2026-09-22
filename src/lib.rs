@@ -7,11 +7,12 @@
 //! siklus adaptif di atasnya (item selection, ability estimation, stopping
 //! rule, exposure control, content balancing — fase-fase berikutnya).
 //!
-//! Status implementasi saat ini: **Fase 5 — exposure control**. Lihat
+//! Status implementasi saat ini: **Fase 6 — content balancing**. Lihat
 //! `PLAN.md` di root crate untuk peta fase lengkap.
 
 pub mod ability_estimation;
 pub mod bank;
+pub mod content_balancing;
 pub mod error;
 pub mod exposure_control;
 pub mod initial_theta;
@@ -22,6 +23,9 @@ pub mod theta;
 
 pub use ability_estimation::{AbilityEstimationDebug, EstimationConfig, Method, ScoreEstimate};
 pub use bank::{GroupParams, ItemBank, ItemMeta};
+pub use content_balancing::{
+    narrow_candidates, ContentBalancingConfig, ContentBalancingDebug, ContentCategory,
+};
 pub use error::MirtCatError;
 pub use exposure_control::{
     select_with_exposure, ExposureControlConfig, ExposureControlDebug, ExposureMode,

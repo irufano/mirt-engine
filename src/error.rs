@@ -20,4 +20,10 @@ pub enum MirtCatError {
     /// Parameter model tidak valid (mis. `u <= g`, boundary graded tidak terurut).
     #[error("parameter tidak valid: {0}")]
     InvalidParameter(String),
+
+    /// Content balancing digabung dengan `Criterion::Seq` — kombinasi ini
+    /// eksplisit dilarang `mirtCAT` (`Design$initialize`: "content designs
+    /// are not supported for seq criteria").
+    #[error("content balancing tidak kompatibel dengan Criterion::Seq")]
+    ContentBalancingIncompatibleWithSeq,
 }
