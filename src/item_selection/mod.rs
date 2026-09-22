@@ -145,6 +145,18 @@ pub struct PersonState {
     /// sebelumnya yang pernah relevan (lih. `DesignClass.R:352-354`:
     /// `thetas_history[nrow(...),] - thetas_history[nrow(...)-1L,]`).
     previous_theta: Option<ThetaVector>,
+    /// Riwayat penuh `theta`/SE tiap kali `set_theta`/`set_estimate`
+    /// dipanggil (satu baris per re-estimasi, biasanya satu per item
+    /// terjawab) -- padanan `person$thetas_history`/`person$thetas_SE_history`
+    /// R (`PersonClass.R$Update_thetas`, `rbind` tiap panggilan). **Deviasi
+    /// sengaja dari R**: R menyisipkan baris `theta` AWAL (pra-tes) sebagai
+    /// baris pertama sebelum item manapun dijawab, sehingga panjangnya
+    /// `N_item + 1`; di sini kosong sampai re-estimasi PERTAMA terjadi,
+    /// sehingga panjangnya persis `N_item` (selaras dengan `answered_items`,
+    /// dipakai Fase 7 `McatResult::thetas_history`/`thetas_se_history` --
+    /// lih. `docs/teori/07-hasil-akhir-theta.md`).
+    thetas_history: Vec<ThetaVector>,
+    thetas_se_history: Vec<SEVector>,
     answered_items: Vec<ItemIndex>,
     /// Kategori respons per item terjawab, paralel dengan `answered_items`
     /// (index `i` di sini adalah kategori respons untuk `answered_items[i]`).
@@ -169,6 +181,8 @@ impl PersonState {
             theta: ThetaVector::zeros(nfact),
             se: SEVector::zeros(nfact),
             previous_theta: None,
+            thetas_history: Vec::new(),
+            thetas_se_history: Vec::new(),
             answered_items: Vec::new(),
             responses: Vec::new(),
             item_times: Vec::new(),
@@ -183,6 +197,8 @@ impl PersonState {
             theta,
             se: SEVector::zeros(nfact),
             previous_theta: None,
+            thetas_history: Vec::new(),
+            thetas_se_history: Vec::new(),
             answered_items: Vec::new(),
             responses: Vec::new(),
             item_times: Vec::new(),
@@ -196,6 +212,8 @@ impl PersonState {
             theta,
             se,
             previous_theta: None,
+            thetas_history: Vec::new(),
+            thetas_se_history: Vec::new(),
             answered_items: Vec::new(),
             responses: Vec::new(),
             item_times: Vec::new(),
@@ -222,6 +240,8 @@ impl PersonState {
     /// `previous_theta` -- dipakai Fase 4 untuk `met_delta_thetas`).
     pub fn set_theta(&mut self, theta: ThetaVector) {
         self.previous_theta = Some(std::mem::replace(&mut self.theta, theta));
+        self.thetas_history.push(self.theta.clone());
+        self.thetas_se_history.push(self.se.clone());
     }
 
     /// Perbarui `theta` & SE sekaligus — dipakai hasil `ability_estimation::estimate`
@@ -229,6 +249,8 @@ impl PersonState {
     pub fn set_estimate(&mut self, theta: ThetaVector, se: SEVector) {
         self.previous_theta = Some(std::mem::replace(&mut self.theta, theta));
         self.se = se;
+        self.thetas_history.push(self.theta.clone());
+        self.thetas_se_history.push(self.se.clone());
     }
 
     /// `theta` sebelum update terakhir -- `None` sebelum estimasi ulang
@@ -236,6 +258,18 @@ impl PersonState {
     /// re-estimasi). Dipakai Fase 4 untuk evaluasi `met_delta_thetas`.
     pub fn previous_theta(&self) -> Option<&ThetaVector> {
         self.previous_theta.as_ref()
+    }
+
+    /// Riwayat penuh `theta` tiap re-estimasi (`set_theta`/`set_estimate`) --
+    /// satu baris per item terjawab (bukan `N_item + 1` seperti R, lih.
+    /// catatan field `thetas_history`). Dipakai Fase 7 (`McatResult`).
+    pub fn thetas_history(&self) -> &[ThetaVector] {
+        &self.thetas_history
+    }
+
+    /// Riwayat penuh SE tiap re-estimasi, sejalan dengan `thetas_history()`.
+    pub fn thetas_se_history(&self) -> &[SEVector] {
+        &self.thetas_se_history
     }
 
     pub fn n_answered(&self) -> usize {
@@ -683,6 +717,55 @@ mod tests {
             Some(&ThetaVector::from_vec(vec![0.5, -0.2]))
         );
         assert_eq!(person.theta(), &ThetaVector::from_vec(vec![0.8, -0.1]));
+    }
+
+    #[test]
+    fn person_state_thetas_history_has_one_row_per_reestimation_not_nfact_plus_one() {
+        // Deviasi sengaja dari R (`thetas_history` R punya baris pra-tes ke-0
+        // -> panjang N_item + 1) -- lih. catatan field `thetas_history`.
+        let mut person = PersonState::from_theta_and_se(
+            ThetaVector::from_vec(vec![0.0, 0.0]),
+            SEVector::from_vec(vec![1.0, 1.0]),
+        );
+        assert!(person.thetas_history().is_empty());
+        assert!(person.thetas_se_history().is_empty());
+
+        person.set_estimate(
+            ThetaVector::from_vec(vec![0.3, -0.1]),
+            SEVector::from_vec(vec![0.6, 0.7]),
+        );
+        person.set_theta(ThetaVector::from_vec(vec![0.5, -0.2]));
+        person.set_estimate(
+            ThetaVector::from_vec(vec![0.8, -0.1]),
+            SEVector::from_vec(vec![0.3, 0.3]),
+        );
+
+        assert_eq!(person.thetas_history().len(), 3);
+        assert_eq!(person.thetas_se_history().len(), 3);
+        assert_eq!(
+            person.thetas_history()[0],
+            ThetaVector::from_vec(vec![0.3, -0.1])
+        );
+        assert_eq!(
+            person.thetas_history()[1],
+            ThetaVector::from_vec(vec![0.5, -0.2])
+        );
+        assert_eq!(
+            person.thetas_history()[2],
+            ThetaVector::from_vec(vec![0.8, -0.1])
+        );
+        // `set_theta` tidak mengubah SE -- baris ke-2 mewarisi SE dari baris ke-1.
+        assert_eq!(
+            person.thetas_se_history()[1],
+            SEVector::from_vec(vec![0.6, 0.7])
+        );
+        assert_eq!(
+            person.thetas_se_history()[2],
+            SEVector::from_vec(vec![0.3, 0.3])
+        );
+        // Baris terakhir selalu sejalan dengan `theta()`/`se()` saat ini.
+        assert_eq!(person.thetas_history().last(), Some(person.theta()));
+        assert_eq!(person.thetas_se_history().last(), Some(person.se()));
     }
 
     #[test]

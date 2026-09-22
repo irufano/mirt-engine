@@ -64,6 +64,7 @@ use crate::theta::{SEVector, ThetaVector};
 /// Keputusan klasifikasi satu dimensi (`Ci`) atau gabungan (`Sprt`) --
 /// padanan string `'above cutoff'`/`'below cutoff'`/`'no decision'` R.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ClassifyDecision {
     AboveCutoff,
     BelowCutoff,

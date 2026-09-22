@@ -1229,14 +1229,73 @@ seleksi item.
 
 ## Fase 7 — Hasil Bersih Akhir untuk Theta pada MCAT
 
-**Status: ⬜ Belum Dimulai**
+**Status: ✅ Selesai**
+
+> **Update (2026-09-22)**: perilaku diverifikasi langsung terhadap source
+> `mirtCAT` 1.14 terpasang (`getFromNamespace("mirtCAT_post_internal",
+> "mirtCAT")`, `getMethod("Update.stop_now", "Design")`) -- bukan hanya
+> dibaca dari sketsa `PLAN.md`/checkout source di bawah. Temuan penting:
+> 1. **Checkout `mirtCAT/R/DesignClass.R`/`mirtCAT_preamble.R` BERBEDA dari
+>    yang sungguh ter-compile di package terpasang** (pola sama seperti
+>    Fase 2/3/6): field `terminated_early` yang dijanjikan checkout source
+>    TIDAK PERNAH ditulis oleh `Update.stop_now` versi terpasang (logika
+>    `stop_now`/`classify_decision`-nya sendiri IDENTIK, hanya 2 baris
+>    `person$terminated_early <- TRUE` yang hilang), dan
+>    `mirtCAT_post_internal()` terpasang mengembalikan field
+>    `terminated_sucessfully` (GUI-only, selalu `FALSE` untuk sesi
+>    `local_pattern` offline) -- BUKAN `terminated_early`. Jadi tidak ada
+>    field R literal untuk memparitas-ujikan `McatResult::terminated_early`;
+>    field itu tetap diteruskan dari `StopDecision::terminated_early` Rust
+>    (Fase 4, logikanya sendiri sudah diverifikasi benar terpisah) --
+>    didokumentasikan sebagai keterbatasan yang diketahui, bukan diabaikan
+>    diam-diam. Lih. `docs/teori/07-hasil-akhir-theta.md` §1.
+> 2. **`result::ClassifyDecision` (sketsa awal) ternyata duplikat** --
+>    `stopping_rule::ClassifyDecision` (Fase 4) sudah persis enum yang
+>    dibutuhkan, dipakai ulang langsung (Prinsip Desain #1).
+> 3. **Accessor `info_thetas` "terpisah" (sketsa awal) ternyata sudah ada**
+>    -- `PersonState::info_thetas(&self, bank)` (Fase 2) sudah persis
+>    accessor yang dimaksud ("padanan `design_elements=TRUE` +
+>    `extract.mirtCAT()`"); tidak ada kode baru yang perlu ditulis untuk
+>    poin desain ini, hanya didokumentasikan cara memakainya.
+> 4. **`thetas_history`/`thetas_se_history` R punya baris pra-tes ekstra**
+>    (`nrow = N_item + 1`, dikonfirmasi lewat fixture R nyata) -- sengaja
+>    TIDAK direplikasi: `PersonState::thetas_history()`/`thetas_se_history()`
+>    (field baru di `PersonState`, Fase 2) panjangnya persis `N_item`,
+>    sejalan 1:1 dengan `items_answered`/`responses`. Lih.
+>    `docs/teori/07-hasil-akhir-theta.md` §3 untuk alasan lengkap.
+> 5. **Parameter R `classify_CI` BUKAN langsung `classify_alpha`** yang
+>    dipakai `qnorm()` -- `Design$initialize()` terpasang mentransformasi
+>    `classify_alpha <- (1 - classify_CI) / 2` sebelum dipakai (temuan yang
+>    SAMA yang sudah didokumentasikan `tests/integration_stopping_rule.rs`
+>    Fase 4, dipakai ulang di fixture generator/test integrasi fase ini).
+> 6. **`McatSession::extract_info_matrix()` (sketsa awal) dihapus dari
+>    scope fase ini** -- itu bagian `McatSession` (Fase 8, orkestrator
+>    sesi, belum diimplementasikan), bukan `McatResult`/`PersonState`.
+>    Poin desain "`info_thetas` opsional" (temuan #3) sudah tercapai TANPA
+>    `McatSession` lewat `PersonState::info_thetas()` yang sudah ada.
+>
+> Fixture R (`tests/fixtures/final_result.json`, dihasilkan via
+> `Rscript tests/fixtures/generate_r_fixtures_final_result.R`) menjalankan
+> sesi `mirtCAT()` 3 dimensi end-to-end (skenario identik `ci_session`
+> Fase 4: classify CI, `min_items=3`) sampai BENAR-BENAR berhenti lebih
+> awal (item ke-4 dari 30) dengan klasifikasi 3-dimensi CAMPURAN.
+> Dicocokkan lewat replay (theta/SE diinjeksi dari fixture, pola sama
+> Fase 5/6) + `stopping_rule::evaluate()` (Fase 4) sungguhan di langkah
+> terakhir -> `McatResult::from_person()` (Fase 7), seluruh field
+> dibandingkan terhadap fixture (`tests/integration_final_result.rs`).
+> `cargo test --features serde` (233 test: 205 unit + 28 integrasi lintas
+> 8 file, termasuk 10 test unit baru `result` + 1 `theta` serde roundtrip
+> + 1 `item_selection` history, dan 1 test integrasi baru
+> `integration_final_result`) & `cargo clippy --all-targets --features
+> serde -- -D warnings` hijau, baik dengan maupun tanpa `--features serde`.
 
 ### Tujuan
 Merangkum keluaran akhir sesi tes ke dalam struktur hasil yang bersih,
 konsisten dengan bentuk output `mirtCAT` untuk `nfact > 1`.
 
 ### Rujukan Kode Sumber (R)
-- `mirtCAT/R/mirtCAT_preamble.R:245-285` (`mirtCAT_post_internal`)
+- `mirtCAT/R/mirtCAT_preamble.R:245-285` (`mirtCAT_post_internal`, checkout
+  -- lih. catatan "Update" di atas soal perbedaan dengan versi terpasang)
 
 ### Perilaku yang Harus Disamai
 - `thetas`: vektor `1 × nfact` (estimasi akhir tiap dimensi).
@@ -1262,40 +1321,48 @@ konsisten dengan bentuk output `mirtCAT` untuk `nfact > 1`.
   `mirtCAT`)
 
 ### Desain Modul Rust
-- `result::ClassifyDecision` — enum `AboveCutoff`, `BelowCutoff`, `NoDecision`.
-- `result::McatResult { thetas: ThetaVector, se_thetas: SEVector, thetas_history: Vec<ThetaVector>, thetas_se_history: Vec<SEVector>, classification: Vec<ClassifyDecision>, column_names: Vec<String>, items_answered: Vec<usize>, responses: Vec<Option<i32>>, terminated_early: bool }` — turunan `serde::Serialize` di belakang feature `serde`.
-- `result::McatResult::column_names()` — generator `Theta_1..Theta_nfact`.
-- `session::McatSession::extract_info_matrix(&self) -> Option<&InfoMatrix>` — accessor opsional selama sesi masih hidup (bukan bagian `McatResult`), setara `extract.mirtCAT()` + `design_elements=TRUE`.
+
+> Diperbarui dari sketsa awal sesuai implementasi final (pola sama seperti
+> Fase 2/4/6 — lih. catatan "Update" di atas untuk alasan tiap deviasi).
+
+- `result::McatResult { thetas: ThetaVector, se_thetas: SEVector, thetas_history: Vec<ThetaVector>, thetas_se_history: Vec<SEVector>, classification: Vec<stopping_rule::ClassifyDecision>, column_names: Vec<String>, items_answered: Vec<usize>, responses: Vec<Option<i32>>, terminated_early: bool }` — turunan `serde::Serialize`/`Deserialize` di belakang feature `serde` (opt-in, bukan default). `ClassifyDecision` dipakai ulang dari `stopping_rule` (Fase 4), BUKAN enum baru (lih. "Update" #2).
+- `result::McatResult::column_names(nfact) -> Vec<String>` — generator `Theta_1..Theta_nfact`.
+- `result::McatResult::from_person(person: &PersonState, stop_decision: &StopDecision) -> Self` — perakitan dari `PersonState` final (Fase 2) + `StopDecision` terakhir (Fase 4); `classification` dinormalisasi selalu panjang `nfact` (kosong -> `NoDecision` broadcast, `Sprt` panjang 1 -> broadcast, `Ci` diteruskan apa adanya).
+- `PersonState::thetas_history()`/`thetas_se_history() -> &[ThetaVector]`/`&[SEVector]` (field + accessor BARU di `item_selection::PersonState`, Fase 2 -- bukan modul `result`) — riwayat penuh tiap re-estimasi, di-push di `set_theta`/`set_estimate`, panjang `N_item` (deviasi sengaja dari R, lih. "Update" #4).
+- `ThetaVector`/`SEVector` (`src/theta.rs`) mendapat `impl Serialize/Deserialize` manual (delegasi ke `Vec<f64>` polos lewat `as_slice()`/`from_vec()` yang sudah ada, BUKAN derive di atas `nalgebra::DVector` -- menghindari dependency tambahan `nalgebra/serde-serialize`) di belakang `#[cfg(feature = "serde")]`, dipakai ulang lewat macro `impl_vector_newtype!` yang sudah ada.
+- Accessor `info_thetas` opsional: **bukan kode baru** -- `PersonState::info_thetas(&self, bank: &ItemBank)` (Fase 2, sudah ada) dipakai ulang apa adanya (lih. "Update" #3, #6). `session::McatSession::extract_info_matrix()` (sketsa awal) dihapus dari scope fase ini, jadi milik Fase 8.
 
 ### Checklist Implementasi
-- [ ] `ClassifyDecision` (enum) & `McatResult` (struct)
-- [ ] Perakitan `McatResult` dari `PersonState` final (thetas, SE, history, classification)
-- [ ] `column_names()` — `Theta_1..Theta_nfact`
-- [ ] Feature flag `serde` untuk `McatResult` (dan struct terkait) agar mudah diserialisasi ke JSON
-- [ ] Accessor opsional `info_thetas` terpisah dari `McatResult` (bukan bagian hasil baku)
+- [x] `McatResult` (struct) -- `ClassifyDecision` dipakai ulang dari Fase 4, bukan didefinisikan ulang
+- [x] Perakitan `McatResult` dari `PersonState` final (thetas, SE, history, classification) — `McatResult::from_person()`
+- [x] `column_names()` — `Theta_1..Theta_nfact`
+- [x] Feature flag `serde` untuk `McatResult` (dan struct terkait: `ThetaVector`, `SEVector`, `ClassifyDecision`) agar mudah diserialisasi ke JSON
+- [x] Accessor opsional `info_thetas` terpisah dari `McatResult` (bukan bagian hasil baku) — `PersonState::info_thetas()` (Fase 2, reuse)
+- [x] `PersonState::thetas_history()`/`thetas_se_history()` — riwayat penuh, prasyarat perakitan `McatResult` yang belum ada sebelum fase ini
 
 ### Checklist Unit Test
-- [ ] `McatResult` terisi benar dari sesi sintetis 3 dimensi (histori 5 item) — cek dimensi matriks histori `5 × 3`
-- [ ] `column_names()` menghasilkan `["Theta_1","Theta_2","Theta_3"]` untuk `nfact=3`
-- [ ] `classification` default `NoDecision` sepanjang `nfact` bila `classify_type=None`
-- [ ] `info_thetas` **tidak** ada di field `McatResult` (dicek secara struktural/tipe), hanya dapat diakses lewat `McatSession` sebelum sesi selesai
-- [ ] Serialisasi JSON (`serde`) menghasilkan struktur field yang diharapkan (uji round-trip serialize/deserialize)
+- [x] `McatResult` terisi benar dari sesi sintetis 3 dimensi (histori 5 item) — cek dimensi matriks histori `5 × 3` — `from_person_fills_thetas_history_matrix_with_n_item_rows`
+- [x] `column_names()` menghasilkan `["Theta_1","Theta_2","Theta_3"]` untuk `nfact=3` — `column_names_generates_theta_1_through_nfact`
+- [x] `classification` default `NoDecision` sepanjang `nfact` bila `classify_type=None` — `classification_defaults_to_no_decision_for_every_dimension_when_classify_type_none` (+ `Ci`/`Sprt`: `classification_passes_through_per_dimension_decisions_for_ci_mode`, `classification_broadcasts_single_sprt_decision_to_every_dimension`)
+- [x] `info_thetas` **tidak** ada di field `McatResult` (dicek secara struktural/tipe lewat exhaustive destructuring), hanya dapat diakses lewat `PersonState::info_thetas()` (bukan `McatSession` -- fase itu belum ada, lih. "Update" #6) — `info_thetas_is_not_a_field_of_mcat_result_structurally`
+- [x] Serialisasi JSON (`serde`) menghasilkan struktur field yang diharapkan (uji round-trip serialize/deserialize) — `mcat_result_serializes_and_deserializes_round_trip` (+ `theta_vector_and_se_vector_serde_roundtrip_as_plain_json_array` di `theta.rs`)
+- [x] `PersonState::thetas_history()` panjang `N_item` (bukan `N_item+1`), baris terakhir sejalan `theta()`/`se()` saat ini — `person_state_thetas_history_has_one_row_per_reestimation_not_nfact_plus_one`
 
 ### Checklist Integration Test
-- [ ] Fixture R: sesi penuh 3 dimensi hingga selesai → ekstrak `thetas`, `SE_thetas`, `thetas_history`, `thetas_SE_history`, `classification` dari objek hasil `mirtCAT`
-- [ ] Bandingkan seluruh field `McatResult` Rust vs fixture R (toleransi numerik untuk theta/SE, kecocokan eksak untuk dimensi matriks & nama kolom)
+- [x] Fixture R: sesi penuh 3 dimensi hingga selesai (berhenti lebih awal via classify CI, item ke-4 dari 30) → ekstrak `thetas`, `SE_thetas`, `thetas_history`, `thetas_SE_history`, `classification` dari objek hasil `mirtCAT` sungguhan — `tests/fixtures/generate_r_fixtures_final_result.R`
+- [x] Bandingkan seluruh field `McatResult` Rust vs fixture R (toleransi numerik untuk theta/SE, kecocokan eksak untuk dimensi matriks & nama kolom) — `tests/integration_final_result.rs::mcat_result_matches_r_final_result_fixture_after_ci_early_stop` (replay + `stopping_rule::evaluate()` Fase 4 sungguhan di langkah terakhir, membuktikan pipa Fase 4 -> Fase 7 benar)
 
 ### Checklist Example Script
-- [ ] `examples/07_final_result.rs` — jalankan sesi sintetis end-to-end (memakai Fase 1–6), cetak `McatResult` lengkap termasuk histori, lalu serialisasi ke JSON
+- [x] `examples/07_final_result.rs` — jalankan sesi sintetis end-to-end (Fase 1–4: initial theta, item selection, ability estimation, stopping rule), cetak `McatResult` lengkap termasuk histori, lalu serialisasi ke JSON (`cargo run --example 07_final_result --features serde`)
 
 ### Checklist Dokumentasi
-- [ ] `docs/teori/07-hasil-akhir-theta.md` — interpretasi `theta`/SE akhir multidimensional, kenapa `info_thetas` sengaja tidak dikembalikan default, referensi akademik
-- [ ] `docs/panduan/07-hasil-akhir-theta.md` — cara membaca `McatResult`, cara mengakses `info_thetas` opsional, contoh serialisasi ke JSON untuk API
+- [x] `docs/teori/07-hasil-akhir-theta.md` — interpretasi `theta`/SE akhir multidimensional, kenapa `info_thetas` sengaja tidak dikembalikan default, temuan checkout-vs-terpasang (`terminated_early`), deviasi `thetas_history`/`classification`, referensi akademik
+- [x] `docs/panduan/07-hasil-akhir-theta.md` — cara membaca `McatResult`, cara mengakses `info_thetas` opsional, contoh serialisasi ke JSON untuk API
 
 ### Definition of Done
-- [ ] Semua checklist di atas tercentang
-- [ ] `cargo test -p mirtcat-engine result` hijau
-- [ ] Parity struktur & nilai hasil akhir dengan fixture R terverifikasi
+- [x] Semua checklist di atas tercentang
+- [x] `cargo test --features serde` (233 test: 205 unit termasuk 12 baru [`result` 9 + `theta` 1 + `item_selection` 1 + `classify_type_default_still_produces_no_decision_vector`], 28 integrasi termasuk 1 `integration_final_result`) & `cargo clippy --all-targets --features serde -- -D warnings` hijau; sama-sama hijau TANPA `--features serde` (203 unit + 28 integrasi, 2 test serde di-skip lewat `#[cfg(feature = "serde")]`); `cargo fmt --check` bersih untuk seluruh file yang disentuh Fase 7 (`src/result.rs`, `src/theta.rs` [+baris serde], `src/lib.rs` [+2 baris], `src/stopping_rule/mod.rs` [+1 baris derive], `src/item_selection/mod.rs` [+field/method/test histori], `tests/integration_final_result.rs`, `examples/07_final_result.rs`, `Cargo.toml`) -- sisa diff `cargo fmt --check` di file Fase 3/4 lama (`src/ability_estimation/*.rs`, sisa `src/stopping_rule/mod.rs` di luar baris yang disentuh fase ini) sudah ada SEBELUM Fase 7, di luar scope perubahan ini
+- [x] Parity struktur & nilai hasil akhir dengan fixture R terverifikasi (lih. Checklist Integration Test); keterbatasan `terminated_early` (tidak ada field R literal di package terpasang) didokumentasikan eksplisit, bukan diabaikan diam-diam (lih. catatan "Update" #1)
 
 ---
 

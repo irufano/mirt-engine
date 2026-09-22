@@ -86,6 +86,26 @@ macro_rules! impl_vector_newtype {
                 Self(DVector::from_row_slice(v))
             }
         }
+
+        // Serialisasi manual sebagai `Vec<f64>` polos (bukan derive di atas
+        // `nalgebra::DVector`) -- menghindari perlu mengaktifkan fitur
+        // `nalgebra/serde-serialize` (dependency tambahan) hanya untuk newtype
+        // tipis ini; `from_vec`/`as_slice` yang sudah ada di atas dipakai
+        // ulang langsung (Prinsip Desain #1 PLAN.md). Dipakai Fase 7
+        // (`McatResult`).
+        #[cfg(feature = "serde")]
+        impl serde::Serialize for $ty {
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                self.as_slice().serialize(serializer)
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        impl<'de> serde::Deserialize<'de> for $ty {
+            fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                Vec::<f64>::deserialize(deserializer).map(Self::from_vec)
+            }
+        }
     };
 }
 
@@ -239,6 +259,21 @@ impl AddAssign<&InfoMatrix> for InfoMatrix {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn theta_vector_and_se_vector_serde_roundtrip_as_plain_json_array() {
+        let theta = ThetaVector::from_vec(vec![0.5, -1.2, 0.0]);
+        let json = serde_json::to_string(&theta).unwrap();
+        assert_eq!(json, "[0.5,-1.2,0.0]");
+        let back: ThetaVector = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, theta);
+
+        let se = SEVector::from_vec(vec![0.3, 0.4]);
+        let json = serde_json::to_string(&se).unwrap();
+        let back: SEVector = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, se);
+    }
 
     #[test]
     fn theta_vector_zeros_has_correct_nfact() {

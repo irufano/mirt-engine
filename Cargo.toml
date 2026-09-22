@@ -10,8 +10,16 @@ repository = "https://github.com/irufano/mirtcat-engine"
 log = "0.4"
 nalgebra = "0.33"
 rand = "0.8"
+serde = { version = "1", features = ["derive"], optional = true }
 thiserror = "1"
 
 [dev-dependencies]
 approx = "0.5"
 serde_json = "1"
+
+[features]
+default = []
+# Serialisasi/deserialisasi `McatResult` (Fase 7) & tipe pendukungnya ke/dari
+# JSON -- opt-in (bukan default), pemanggil yang butuh persist hasil lewat
+# HTTP/DB (lih. `docs/panduan/07-hasil-akhir-theta.md`) yang mengaktifkan.
+serde = ["dep:serde"]
