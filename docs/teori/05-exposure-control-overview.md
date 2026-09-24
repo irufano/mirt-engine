@@ -98,9 +98,9 @@ objek `Person`, dimutasi in-place oleh mode `SH` untuk item yang ditolak —
 `PersonState` (Fase 2, sudah selesai & teruji) **sengaja tidak** ditambahi
 field ini. Mengikuti preseden Fase 4 (`allow_constrain_breaks` jadi
 parameter `bool` yang diteruskan pemanggil, bukan field `PersonState`,
-karena tanggung jawab lintas-fase yang belum ada orchestrator-nya —
-Fase 8): `select_with_exposure()` menerima `valid_items: &mut [bool]`
-sebagai parameter eksplisit, dimiliki & disiapkan pemanggil. Ini juga
+karena tanggung jawab lintas-fase yang belum ada orchestrator-nya):
+`select_with_exposure()` menerima `valid_items: &mut [bool]` sebagai
+parameter eksplisit, dimiliki & disiapkan pemanggil. Ini juga
 menyiapkan Fase 6 (constraint `independent` di `mirtCAT` JUGA memutasi
 `valid_item`) untuk berbagi struktur yang sama tanpa desain ulang
 `PersonState` nanti.

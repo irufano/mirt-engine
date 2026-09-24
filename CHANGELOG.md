@@ -7,7 +7,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Belum ada rilis `crates.io` — seluruh Fase 0–9 (`PLAN.md`) selesai di
+Belum ada rilis `crates.io` — seluruh Fase 0–8 (`PLAN.md`) selesai di
 riwayat commit ini, dikelompokkan di bawah sebagai satu entri "Added"
 sebelum rilis pertama.
 
@@ -30,11 +30,7 @@ sebelum rilis pertama.
   proporsi kategori konten (`content_balancing`).
 - **Fase 7 — Hasil Akhir**: `McatResult` — ringkasan bersih `theta`/SE/
   riwayat untuk konsumen di luar engine (`result`).
-- **Fase 8 — Orkestrasi Sesi**: `McatSession` menyatukan Fase 1–7 jadi satu
-  siklus adaptif per-langkah (`next_item`/`submit_response`/`finalize`),
-  serialisasi state sesi lewat fitur `serde`, contoh integrasi Axum
-  (`examples/08_axum_api`).
-- **Fase 9 — Hardening & Kesiapan Rilis**:
+- **Fase 8 — Hardening & Kesiapan Rilis**:
   - Property-based test (`proptest`) untuk invariant lintas modul:
     probabilitas kategori selalu menjumlah 1, matriks informasi Fisher
     kumulatif selalu positive semi-definite, proporsi empiris content

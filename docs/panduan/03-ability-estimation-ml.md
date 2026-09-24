@@ -52,7 +52,7 @@ if theta.as_slice().iter().any(|v| !v.is_finite()) {
 `ML -> MAP` untuk pola respons identik seluruhnya) — bukan tanggung jawab
 `ability_estimation::estimate()` (lih.
 `docs/teori/03-ability-estimation-ml.md` §3), jadi caller perlu
-mengimplementasikan kebijakan serupa sendiri bila diperlukan (Fase 8).
+mengimplementasikan kebijakan serupa sendiri bila diperlukan.
 
 Contoh lengkap (pola moderat vs ekstrem): `cargo run --example
 03_ability_estimation_ml`.

@@ -53,7 +53,7 @@ otomatis: kalau `method == 'ML'` DAN seluruh respons terjawab identik
 `'MAP'` sebelum memanggil `fscores()` — mencegah pengguna CAT sesungguhnya
 pernah melihat `theta = Inf` di tengah sesi.
 
-**Ini logika sesi CAT (Fase 8), bukan tanggung jawab
+**Ini logika sesi CAT, bukan tanggung jawab
 `ability_estimation::estimate()`.** `Method::Ml` di Fase 3 sengaja mentah
 (divergen apa adanya) — keputusan KAPAN beralih ke `MAP` sebagai
 pengamanan adalah kebijakan orkestrasi level lebih tinggi, terpisah dari

@@ -117,7 +117,15 @@ impl Default for ItemBank {
 /// awal & SE awal di Fase 1.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GroupParams {
+    /// Rata-rata populasi (*group means*), panjang `nfact` -- titik tengah
+    /// distribusi `theta` yang diasumsikan, biasanya `[0, ..., 0]` (skala
+    /// IRT terstandarisasi).
     gmeans: ThetaVector,
+    /// Matriks kovarians populasi (*group covariance*), `nfact x nfact` --
+    /// diagonal = varians tiap dimensi, off-diagonal = korelasi antar-
+    /// dimensi. Dipakai sebagai SE awal (Fase 1), prior `DRule{prior:true}`
+    /// (info Fisher + invers `gcov`, supaya full-rank sejak 0 item
+    /// terjawab), dan prior Bayesian estimasi MAP (Fase 3).
     gcov: InfoMatrix,
 }
 

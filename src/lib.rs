@@ -7,13 +7,12 @@
 //! siklus adaptif di atasnya (item selection, ability estimation, stopping
 //! rule, exposure control, content balancing — fase-fase berikutnya).
 //!
-//! Status implementasi: **Fase 0–9 selesai** — fondasi IRT, siklus adaptif
+//! Status implementasi: **Fase 0–8 selesai** — fondasi IRT, siklus adaptif
 //! penuh (theta awal, seleksi item, estimasi kemampuan, stopping rule,
-//! exposure control, content balancing, hasil akhir), orkestrasi sesi
-//! (`McatSession`) & contoh Axum, serta hardening rilis (Fase 9: property
-//! test, benchmark, audit keamanan, dokumentasi API lengkap). Lihat
-//! `PLAN.md` di root crate untuk peta fase lengkap & `CHANGELOG.md` untuk
-//! ringkasan tiap fase.
+//! exposure control, content balancing, hasil akhir), serta hardening
+//! rilis (Fase 8: property test, benchmark, audit keamanan, dokumentasi
+//! API lengkap). Lihat `PLAN.md` di root crate untuk peta fase lengkap &
+//! `CHANGELOG.md` untuk ringkasan tiap fase.
 
 #![deny(missing_docs)]
 
@@ -26,7 +25,6 @@ pub mod initial_theta;
 pub mod irt;
 pub mod item_selection;
 pub mod result;
-pub mod session;
 pub mod stopping_rule;
 pub mod theta;
 
@@ -45,7 +43,6 @@ pub use item_selection::{
     SelectionConfig,
 };
 pub use result::McatResult;
-pub use session::{McatSession, SessionConfig, StepDebug};
 pub use stopping_rule::{
     evaluate as evaluate_stopping_rule, ClassifyDecision, ClassifyType, CustomStop, StopDecision,
     StoppingConfig, StoppingRuleDebug,

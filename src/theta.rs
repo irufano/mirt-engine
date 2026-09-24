@@ -243,8 +243,8 @@ impl InfoMatrix {
 
 // Serialisasi manual sebagai `Vec<Vec<f64>>` row-major (bukan derive di atas
 // `nalgebra::DMatrix`) -- pola sama persis seperti `ThetaVector`/`SEVector`
-// di atas (menghindari dependency `nalgebra/serde-serialize`). Dipakai Fase 8
-// (`ItemSelectionDebug::info_before`/`info_after`, bagian `McatSession::debug_log`).
+// di atas (menghindari dependency `nalgebra/serde-serialize`). Dipakai
+// `ItemSelectionDebug::info_before`/`info_after` (Fase 2).
 #[cfg(feature = "serde")]
 impl serde::Serialize for InfoMatrix {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {

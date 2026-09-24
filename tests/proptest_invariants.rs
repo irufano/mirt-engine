@@ -1,4 +1,4 @@
-//! Fase 9 — property-based test (`proptest`) untuk invariant lintas modul
+//! Fase 8 — property-based test (`proptest`) untuk invariant lintas modul
 //! yang harus tetap benar untuk SEMUA input valid, bukan cuma titik-titik
 //! yang ditulis manual di test unit/integrasi lain:
 //!

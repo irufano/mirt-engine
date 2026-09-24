@@ -1,6 +1,6 @@
 name: R fixtures audit
 
-# Fase 9 checklist: audit menyeluruh -- regenerasi SELURUH fixture
+# Fase 8 checklist: audit menyeluruh -- regenerasi SELURUH fixture
 # `tests/fixtures/*.json` langsung dari `mirt`/`mirtCAT` (R) yang terpasang
 # di runner, lalu jalankan `cargo test` terhadap hasil regenerasi itu.
 # Bila fixture baru tetap lolos assertion parity Rust, tidak ada regresi;
@@ -44,7 +44,7 @@ jobs:
         run: |
           Rscript -e 'install.packages(c("mirt", "mirtCAT", "jsonlite"), repos = "https://cloud.r-project.org")'
 
-      - name: Regenerasi seluruh fixture (Fase 0-8)
+      - name: Regenerasi seluruh fixture (Fase 0-7)
         run: |
           for script in tests/fixtures/generate_r_fixtures*.R; do
             echo "::group::$script"

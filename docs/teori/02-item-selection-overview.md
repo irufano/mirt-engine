@@ -101,9 +101,9 @@ menggabungkan prior (`*Prule`) idealnya dipasangkan dengan estimator yang
 juga memakai prior (`MAP`), sementara kriteria murni-data (non-prior)
 dipasangkan dengan estimator murni-likelihood (`ML`). Pemilihan OTOMATIS
 `Method` berdasar `Criterion` (mis. field `criteria_estimator` di
-`mirtCAT`) adalah kebijakan orkestrasi sesi CAT (Fase 8, belum
-diimplementasikan) — `ability_estimation::estimate()` sendiri (Fase 3,
-sudah selesai) menerima `Method` eksplisit dari caller, tidak
+`mirtCAT`) adalah kebijakan orkestrasi sesi CAT (belum diimplementasikan)
+— `ability_estimation::estimate()` sendiri (Fase 3, sudah selesai)
+menerima `Method` eksplisit dari caller, tidak
 menyimpulkannya dari `Criterion` secara otomatis.
 
 ## Referensi

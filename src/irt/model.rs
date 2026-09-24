@@ -13,13 +13,12 @@ use crate::theta::{InfoMatrix, ThetaVector};
 /// `theta`, mengikuti formula tertutup di Reckase (2009) & Chalmers (2012) —
 /// lih. `docs/teori/00-fondasi-irt-multidimensional.md`.
 ///
-/// Supertrait `Send + Sync` (ditambahkan Fase 8) -- `ItemBank` menyimpan
-/// `Box<dyn ItemResponseModel>`, dan tanpa bound ini `ItemBank`/`AppState`
-/// tidak bisa dibagi lintas thread sama sekali (mis. state `Router` Axum,
-/// yang mensyaratkan `Send + Sync + 'static` -- lih.
-/// `examples/08_axum_api/app.rs`). Tidak membebani implementor manapun:
-/// `Dichotomous`/`GradedResponse` (satu-satunya implementor saat ini) cuma
-/// berisi `Vec<f64>`/`f64` polos, sudah `Send + Sync` otomatis.
+/// Supertrait `Send + Sync` -- `ItemBank` menyimpan `Box<dyn
+/// ItemResponseModel>`, dan tanpa bound ini `ItemBank` tidak bisa dibagi
+/// lintas thread sama sekali (mis. state bersama di web server async, yang
+/// mensyaratkan `Send + Sync + 'static`). Tidak membebani implementor
+/// manapun: `Dichotomous`/`GradedResponse` (satu-satunya implementor saat
+/// ini) cuma berisi `Vec<f64>`/`f64` polos, sudah `Send + Sync` otomatis.
 pub trait ItemResponseModel: Send + Sync {
     /// Jumlah dimensi laten (`nfact`) yang diharapkan pada `theta`.
     fn nfact(&self) -> usize;

@@ -25,10 +25,10 @@
 //!    sudah selesai & teruji). Mengikuti preseden Fase 4
 //!    (`allow_constrain_breaks` jadi parameter `bool` yang diteruskan
 //!    pemanggil, bukan field `PersonState`, karena tanggung jawab
-//!    lintas-fase yang belum ada orchestrator-nya -- Fase 8):
+//!    lintas-fase yang belum ada orchestrator-nya):
 //!    [`select_with_exposure`] menerima `valid_items: &mut [bool]` sebagai
 //!    parameter eksplisit, dimiliki & disiapkan pemanggil (nantinya
-//!    `McatSession` Fase 8). Ini juga menyiapkan Fase 6 (constraint
+//!    orkestrator sesi eksternal). Ini juga menyiapkan Fase 6 (constraint
 //!    `independent` di `mirtCAT` JUGA memutasi `valid_item`) untuk berbagi
 //!    struktur yang sama tanpa desain ulang `PersonState`.
 //! 3. **`rank_candidates` (Fase 2) diekstrak dari `select_next_item`**,

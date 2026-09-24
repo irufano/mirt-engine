@@ -116,7 +116,7 @@ sama seperti `exposure_control::ExposureControlConfig`, yang menyimpan
 `Vec<f64>` sendiri, bukan bergantung ke `ItemBank`) — `category_per_item`
 dikonstruksi eksplisit oleh pemanggil. `ItemMeta.content: Option<String>`
 (`src/bank.rs`) sudah disiapkan sebelumnya untuk fase ini (komentar
-eksplisit "dipakai content balancing, Fase 6"); `McatSession` (Fase 8)
+eksplisit "dipakai content balancing, Fase 6"); orkestrator sesi eksternal
 adalah titik yang tepat untuk mengisi `category_per_item` dari
 `bank.meta(i).content`, menjaga `content_balancing` tetap bisa diuji tanpa
 `ItemBank` sungguhan.

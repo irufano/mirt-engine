@@ -1,6 +1,6 @@
-//! Fase 9 — benchmark dasar (`criterion`) untuk seleksi item & estimasi
+//! Fase 8 — benchmark dasar (`criterion`) untuk seleksi item & estimasi
 //! kemampuan pada item bank besar (500 item, 5 dimensi), memastikan engine
-//! layak dipakai real-time di web API (lih. `PLAN.md` §Fase 9 checklist).
+//! layak dipakai real-time di web API (lih. `PLAN.md` §Fase 8 checklist).
 //!
 //! Bukan gate pass/fail — `cargo bench` mencetak laporan waktu yang bisa
 //! diinspeksi manual/dibandingkan antar-run (`target/criterion/`).

@@ -41,8 +41,8 @@
 //!    tetap decoupled dari `ItemBank` (pola sama seperti
 //!    `exposure_control::ExposureControlConfig`, yang menyimpan `Vec<f64>`
 //!    sendiri) — `category_per_item` dikonstruksi eksplisit oleh pemanggil
-//!    (nanti `McatSession` Fase 8, dari `bank.meta(i).content`), supaya
-//!    modul ini bisa diuji tanpa perlu `ItemBank` sungguhan.
+//!    (dari `bank.meta(i).content`), supaya modul ini bisa diuji tanpa
+//!    perlu `ItemBank` sungguhan.
 
 use std::collections::{BTreeSet, HashMap};
 

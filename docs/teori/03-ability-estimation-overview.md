@@ -97,14 +97,14 @@ ini lewat `log::warn!` (bukan error keras — persis perilaku R yang cuma
 
 - **Fallback otomatis `ML -> MAP`** untuk pola respons ekstrem (semua item
   terjawab bernilai identik) — ini logika `Design$Update.thetas` level
-  SESI CAT (Fase 8), bukan `mirt::fscores()`/`ability_estimation::estimate()`
-  itu sendiri. `Method::Ml` di Fase 3 sengaja dibiarkan divergen apa adanya
+  SESI CAT, bukan `mirt::fscores()`/`ability_estimation::estimate()` itu
+  sendiri. `Method::Ml` di Fase 3 sengaja dibiarkan divergen apa adanya
   (lih. `docs/teori/03-ability-estimation-ml.md`) — keputusan tentang KAPAN
   beralih metode adalah kebijakan orkestrasi sesi, bukan properti estimator
   itu sendiri.
 - **`criteria_estimator` otomatis** (pemilihan `ML`/`MAP` berdasar kriteria
   seleksi item yang dipakai) — dibahas di
-  `docs/teori/02-item-selection-overview.md` §5, juga Fase 8.
+  `docs/teori/02-item-selection-overview.md` §5, juga level orkestrasi sesi.
 
 ## Peta dokumen per-method
 

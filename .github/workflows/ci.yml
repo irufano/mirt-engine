@@ -34,7 +34,7 @@ jobs:
       - name: cargo test
         run: cargo test --all-targets
 
-      # Fase 9: `#![deny(missing_docs)]` di `src/lib.rs` sudah menggagalkan
+      # Fase 8: `#![deny(missing_docs)]` di `src/lib.rs` sudah menggagalkan
       # `cargo build`/`cargo doc` sendiri bila ada item publik tanpa
       # dokumentasi; `RUSTDOCFLAGS=-D warnings` (env job) menambah gate
       # untuk lint rustdoc lain (mis. broken intra-doc link) yang TIDAK
@@ -42,10 +42,10 @@ jobs:
       - name: cargo doc --no-deps
         run: cargo doc --no-deps
 
-      # Fase 8: contoh Axum (`examples/08_axum_api`) & test HTTP-nya
-      # (`tests/integration_axum.rs`) butuh fitur `serde` untuk compile
-      # sama sekali (`required-features = ["serde"]` di Cargo.toml) --
-      # tanpa dua step ini, keduanya tidak pernah benar-benar dicek CI.
+      # Fitur `serde` (Fase 7, `McatResult` & tipe pendukungnya) opsional --
+      # tidak aktif di `cargo test`/`clippy` default di atas. Tiga step di
+      # bawah memastikan crate tetap compile, lolos clippy, dan doc-nya
+      # bersih saat fitur ini diaktifkan.
       - name: cargo clippy (serde)
         run: cargo clippy --all-targets --features serde -- -D warnings
 

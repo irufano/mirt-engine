@@ -8,8 +8,8 @@
 //! 1.47): pola semua-benar mengembalikan `theta=Inf, SE=NA`. Deteksi lewat
 //! ambang `SE > 30`, replikasi literal `mirt::ML()` (`fscores.internal.R:
 //! 1094-1097`). Fallback otomatis `ML -> MAP` untuk pola ekstrem itu
-//! logika `mirtCAT::Design` (sesi CAT, Fase 8) — bukan tanggung jawab
-//! fungsi ini.
+//! logika `mirtCAT::Design` (level sesi CAT) — bukan tanggung jawab fungsi
+//! ini.
 
 use nalgebra::DVector;
 

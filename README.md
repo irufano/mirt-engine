@@ -15,9 +15,9 @@ control → content balancing → hasil akhir.
 
 ## Status
 
-Fase 0–9 selesai — fondasi IRT, siklus adaptif penuh, orkestrasi sesi
-(`McatSession`), contoh integrasi Axum, dan hardening rilis (property test,
-benchmark, audit keamanan, dokumentasi API lengkap). Lihat [`PLAN.md`](PLAN.md)
+Fase 0–8 selesai — fondasi IRT, siklus adaptif penuh, dan hardening rilis
+(property test, benchmark, audit keamanan, dokumentasi API lengkap). Lihat
+[`PLAN.md`](PLAN.md)
 untuk peta fase & status detail, [`CHANGELOG.md`](CHANGELOG.md) untuk
 ringkasan per fase.
 
@@ -35,8 +35,8 @@ mirtcat-engine = { git = "https://github.com/irufano/mirtcat-engine" }
 ```
 
 Fitur opsional `serde` mengaktifkan `Serialize`/`Deserialize` untuk
-`McatSession`/`McatResult` dan tipe pendukungnya (dibutuhkan untuk
-menyimpan/memulihkan state sesi antar-request HTTP):
+`McatResult` dan tipe pendukungnya (dibutuhkan untuk persist hasil lewat
+HTTP/DB):
 
 ```toml
 mirtcat-engine = { version = "0.1", features = ["serde"] }
@@ -63,33 +63,8 @@ let p = item.probabilities(&theta).unwrap(); // [P(u=0), P(u=1)]
 let info = item.information(&theta).unwrap(); // matriks 2x2
 ```
 
-Menjalankan siklus adaptif penuh lewat `McatSession` (Fase 8 — orkestrator
-end-to-end, cara yang disarankan untuk dipakai dari web API):
-
-```rust
-use mirtcat_engine::{McatSession, SessionConfig};
-
-let mut session = McatSession::new(SessionConfig::default(), &bank, &group, 0)?;
-let mut rng = rand::rngs::StdRng::from_entropy();
-
-loop {
-    let item = session.next_item(&bank, &group, &mut rng)?;
-    // ..sajikan `item` ke peserta, terima respons (kategori 0-based)..
-    let response: usize = /* dari peserta */ 1;
-    let decision = session.submit_response(item, response, &bank, &group, None)?;
-    if decision.stop_now {
-        break;
-    }
-}
-
-let result = session.finalize(); // McatResult (Fase 7)
-```
-
 Lihat [`docs/panduan/00-instalasi-dan-quickstart.md`](docs/panduan/00-instalasi-dan-quickstart.md)
-untuk quickstart lengkap fondasi IRT, dan
-[`docs/panduan/08-integrasi-axum.md`](docs/panduan/08-integrasi-axum.md)
-untuk quickstart `McatSession` penuh (termasuk contoh Axum siap jalan di
-`examples/08_axum_api`). Contoh lain per fase ada di
+untuk quickstart lengkap fondasi IRT. Contoh lain per fase ada di
 [`examples/`](examples/) (`cargo run --example <nama>`).
 
 ## Dokumentasi
@@ -109,7 +84,7 @@ untuk quickstart `McatSession` penuh (termasuk contoh Axum siap jalan di
   mungkin (divalidasi silang dengan fixture yang dihasilkan langsung dari R
   — lih. `tests/fixtures/`).
 - API murni Rust (trait + struct), framework-agnostic — tidak ada
-  dependency web di `[dependencies]`; contoh Axum hanya dev-dependency.
+  dependency web di `[dependencies]` maupun `[dev-dependencies]`.
 - Tiap algoritma diuji & didemonstrasikan independen (unit test, integration
   test, example).
 - Landasan teori didokumentasikan dengan rujukan akademik, bukan cuma

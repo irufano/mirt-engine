@@ -41,8 +41,8 @@ standar (`N(0,1)`).
 - `KLn` di `n_answered = 0` (`delta_efektif = 0`) menghasilkan `KL = 0`
   untuk **semua** kandidat (kedua titik evaluasi berimpit) — argmax jadi
   arbitrer di langkah pertama. Ini konsisten dengan definisi, bukan bug;
-  kombinasikan dengan `start_item` eksplisit (di luar Fase 2, lih. Fase 8)
-  untuk item pertama.
+  kombinasikan dengan `start_item` eksplisit (di luar Fase 2, kebijakan
+  level orkestrasi sesi) untuk item pertama.
 
 Contoh lengkap (perbandingan `KL` vs `KLn` seiring `n_answered` bertambah):
 `cargo run --example 02_item_selection_kl`.
