@@ -3,8 +3,8 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::{EstimationConfig, Method};
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::{EstimationConfig, Method};
 
 let config = EstimationConfig { method: Method::Wle, ..Default::default() };
 let ((theta, se), _) = estimate(&config, &person, &bank, &group)?;
@@ -27,7 +27,7 @@ struktur informasi Fisher item terjawab, bukan prior populasi.
 ## Perbandingan langsung dengan `Ml`
 
 ```rust
-use mirtcat_engine::{EstimationConfig, Method};
+use mirt_engine::{EstimationConfig, Method};
 
 let ml = estimate(&EstimationConfig { method: Method::Ml, ..Default::default() }, &person, &bank, &group)?;
 let wle = estimate(&EstimationConfig { method: Method::Wle, ..Default::default() }, &person, &bank, &group)?;

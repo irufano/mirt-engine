@@ -3,8 +3,8 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::EstimationConfig;
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::EstimationConfig;
 
 let config = EstimationConfig::default(); // Method::Map -- ini default-nya
 let ((theta, se), _) = estimate(&config, &person, &bank, &group)?;
@@ -26,8 +26,8 @@ eksplisit kecuali beralih dari method lain kembali ke `Map`.
 ## Prior: `GroupParams`
 
 ```rust
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{GroupParams, ThetaVector};
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{GroupParams, ThetaVector};
 
 // Prior standar N(0, I) -- dipakai kalau tidak ada info populasi lain
 let group = GroupParams::standard_normal(nfact);

@@ -14,9 +14,9 @@
 
 use std::time::Duration;
 
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::stopping_rule::{evaluate, StoppingConfig};
-use mirtcat_engine::{ItemBank, ItemMeta, PersonState, SEVector, ThetaVector};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::stopping_rule::{evaluate, StoppingConfig};
+use mirt_engine::{ItemBank, ItemMeta, PersonState, SEVector, ThetaVector};
 
 fn build_bank(n: usize) -> ItemBank {
     let mut bank = ItemBank::new();

@@ -1,10 +1,10 @@
 [package]
-name = "mirtcat-engine"
+name = "mirt-engine"
 version = "0.1.0"
 edition = "2021"
 description = "Multidimensional Computerized Adaptive Testing (MCAT) engine, mengacu pada mirt/mirtCAT (R)"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/irufano/mirtcat-engine"
+license = "MIT"
+repository = "https://github.com/irufano/mirt-engine"
 readme = "README.md"
 
 [dependencies]

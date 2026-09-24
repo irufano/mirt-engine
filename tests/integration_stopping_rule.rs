@@ -25,8 +25,8 @@
 //! yang dihasilkan `stopping_rule::evaluate()` (diekspos lewat
 //! `StoppingRuleDebug::sprt_log_likelihood_ratio`, `debug: true`).
 
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::{
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::{
     evaluate_stopping_rule, ClassifyDecision, ClassifyType, ItemBank, ItemMeta, PersonState,
     SEVector, StoppingConfig, ThetaVector,
 };

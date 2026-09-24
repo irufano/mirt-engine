@@ -9,9 +9,9 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion as Crite
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::{
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::{
     select_next_item, Criterion as SelectionCriterion, EstimationConfig, GroupParams, ItemBank,
     ItemMeta, Method, PersonState, SelectionConfig,
 };
@@ -42,7 +42,7 @@ fn build_bank() -> ItemBank {
 /// berjalan sebagian, supaya `info_thetas()`/log-likelihood yang dibench
 /// punya biaya realistis (bukan biaya bank kosong).
 fn build_partial_session(bank: &ItemBank, group: &GroupParams) -> PersonState {
-    let mut person = PersonState::from_theta(mirtcat_engine::ThetaVector::zeros(NFACT));
+    let mut person = PersonState::from_theta(mirt_engine::ThetaVector::zeros(NFACT));
     for i in 0..N_ANSWERED {
         person.record_answer(i, i % 2);
     }

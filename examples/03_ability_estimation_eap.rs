@@ -10,9 +10,9 @@
 
 use std::time::Instant;
 
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::{EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState};
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::{EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState};
 
 fn build_bank() -> ItemBank {
     let params: [([f64; 2], f64); 6] = [

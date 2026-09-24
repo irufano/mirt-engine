@@ -7,9 +7,9 @@
 //! cargo run --example 02_item_selection_e_rule
 //! ```
 
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{
     select_next_item, Criterion, GroupParams, ItemBank, ItemMeta, ItemSelectionDebug, PersonState,
     SelectionConfig, ThetaVector,
 };

@@ -2,21 +2,21 @@
 
 ## Instalasi
 
-`mirtcat-engine` belum dipublikasikan ke crates.io (masih Fase 0 — lih.
+`mirt-engine` belum dipublikasikan ke crates.io (masih Fase 0 — lih.
 `PLAN.md`). Untuk memakainya dari project Rust lain di mesin yang sama,
 tambahkan sebagai path/git dependency di `Cargo.toml`:
 
 ```toml
 [dependencies]
-mirtcat-engine = { path = "../mirtcat-engine" }
+mirt-engine = { path = "../mirt-engine" }
 # atau, setelah dipublikasikan:
-# mirtcat-engine = "0.1"
+# mirt-engine = "0.1"
 ```
 
 Dependency inti: [`nalgebra`](https://crates.io/crates/nalgebra) (aljabar
 linear), [`rand`](https://crates.io/crates/rand), dan
 [`thiserror`](https://crates.io/crates/thiserror). Tidak ada dependency ke
-framework web apa pun — `mirtcat-engine` murni logic, aman dipakai di Axum,
+framework web apa pun — `mirt-engine` murni logic, aman dipakai di Axum,
 Actix, atau context non-web (simulasi batch, CLI).
 
 ## Konsep dasar
@@ -35,8 +35,8 @@ landasan teorinya):
 ## Quickstart: mendefinisikan item & menghitung probabilitas/informasi
 
 ```rust
-use mirtcat_engine::irt::{Dichotomous, GradedResponse, ItemResponseModel};
-use mirtcat_engine::theta::ThetaVector;
+use mirt_engine::irt::{Dichotomous, GradedResponse, ItemResponseModel};
+use mirt_engine::theta::ThetaVector;
 
 fn main() {
     // Item M2PL 2 dimensi: slope a=(1.2, 0.8), intercept d=0.3.
@@ -72,9 +72,9 @@ seluruh item punya `nfact` yang sama) dan `GroupParams` (rata-rata &
 kovarians populasi, sumber theta awal di Fase 1):
 
 ```rust
-use mirtcat_engine::{GroupParams, ItemBank, ItemMeta};
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::theta::{InfoMatrix, ThetaVector};
+use mirt_engine::{GroupParams, ItemBank, ItemMeta};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::theta::{InfoMatrix, ThetaVector};
 
 let mut bank = ItemBank::new();
 bank.push(
@@ -91,7 +91,7 @@ let group = GroupParams::new(
 ## Error handling
 
 Semua batasan yang di `mirtCAT`/`mirt` berupa `stop(...)` diterjemahkan
-jadi `Result<_, MirtCatError>` di `mirtcat-engine` — dicek saat konstruksi
+jadi `Result<_, MirtCatError>` di `mirt-engine` — dicek saat konstruksi
 (mis. `u <= g`, boundary graded tidak terurut, dimensi `theta` tidak cocok
 `nfact` item), bukan `panic!`. Selalu tangani `Result` yang dikembalikan
 konstruktor/`probabilities()`/`information()`.

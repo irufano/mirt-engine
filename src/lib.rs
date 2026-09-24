@@ -1,4 +1,4 @@
-//! `mirtcat-engine` — mesin administrasi tes adaptif multidimensional
+//! `mirt-engine` — mesin administrasi tes adaptif multidimensional
 //! (Multidimensional Computerized Adaptive Testing), mengacu pada perilaku
 //! `mirt`/`mirtCAT` (R), dipersempit ke skenario `nfact > 1`.
 //!

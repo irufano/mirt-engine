@@ -3,8 +3,8 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
-use mirtcat_engine::rank_candidates;
+use mirt_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
+use mirt_engine::rank_candidates;
 
 let mode = ExposureMode::SympsonHetter(vec![0.3; n_items]); // 30% peluang lolos tiap item
 let exp_config = ExposureControlConfig::new(mode, n_items, false)?;

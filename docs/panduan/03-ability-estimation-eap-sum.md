@@ -3,8 +3,8 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::ability_estimation::{estimate, eap_sum_score_table};
-use mirtcat_engine::{EstimationConfig, Method};
+use mirt_engine::ability_estimation::{estimate, eap_sum_score_table};
+use mirt_engine::{EstimationConfig, Method};
 
 let config = EstimationConfig { method: Method::EapSum, ..Default::default() };
 

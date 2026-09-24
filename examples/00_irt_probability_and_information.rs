@@ -8,8 +8,8 @@
 //! cargo run --example 00_irt_probability_and_information
 //! ```
 
-use mirtcat_engine::irt::{Dichotomous, GradedResponse, ItemResponseModel};
-use mirtcat_engine::theta::ThetaVector;
+use mirt_engine::irt::{Dichotomous, GradedResponse, ItemResponseModel};
+use mirt_engine::theta::ThetaVector;
 
 fn print_item_at(name: &str, item: &dyn ItemResponseModel, theta: &ThetaVector) {
     let probs = item

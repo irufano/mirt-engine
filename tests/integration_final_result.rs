@@ -43,8 +43,8 @@
 //! selaras perilaku `stop_now` R yang sama-sama berhenti di item ke-4 dari
 //! 30 karena presisi.
 
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::{
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::{
     evaluate_stopping_rule, ClassifyDecision, ClassifyType, ItemBank, ItemMeta, McatResult,
     PersonState, SEVector, StoppingConfig, ThetaVector,
 };

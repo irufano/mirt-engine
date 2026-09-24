@@ -1,6 +1,6 @@
 //! Trait inti model respons item — padanan konseptual kelas item
 //! `AllItemsClass` di `mirt` (`R/01-itemclass.R`), disederhanakan ke
-//! permukaan yang dibutuhkan `mirtcat-engine`: probabilitas kategori dan
+//! permukaan yang dibutuhkan `mirt-engine`: probabilitas kategori dan
 //! informasi Fisher pada satu titik `theta`.
 
 use crate::error::MirtCatError;

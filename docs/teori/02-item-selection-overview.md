@@ -27,7 +27,7 @@ estimasi kemampuan).
   bukan integral atas grid.
 - **seq/random** — tidak butuh info sama sekali.
 
-`mirtcat-engine` mengikuti pembatasan ini secara **struktural**: enum
+`mirt-engine` mengikuti pembatasan ini secara **struktural**: enum
 `item_selection::Criterion` cuma berisi 9 varian di atas — kriteria yang
 tidak valid untuk `nfact > 1` (`MI`, `MEPV`, `MLWI`, `MPWI`, `MEI`,
 `IKL*`) sengaja tidak dimodelkan sama sekali, sehingga mustahil

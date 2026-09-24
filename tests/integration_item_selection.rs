@@ -13,9 +13,9 @@
 //!   theta R persis di tiap langkah (Fase 3/estimasi ulang belum ada di
 //!   Rust), lalu verifikasi item yang dipilih Rust identik dengan R.
 
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{
     select_next_item, Criterion, GroupParams, ItemBank, ItemMeta, PersonState, SelectionConfig,
     ThetaVector,
 };

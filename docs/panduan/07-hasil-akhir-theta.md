@@ -11,7 +11,7 @@ internal state sesi (`PersonState` mentah, matriks informasi kumulatif).
 ## Merakit `McatResult`
 
 ```rust
-use mirtcat_engine::McatResult;
+use mirt_engine::McatResult;
 
 // `stop_decision` dari `stopping_rule::evaluate()` (Fase 4) di langkah
 // yang memutuskan sesi berhenti.
@@ -52,7 +52,7 @@ Selalu panjang `nfact`, default `NoDecision` per-dimensi bila
 `classify_type == None`:
 
 ```rust
-use mirtcat_engine::ClassifyDecision;
+use mirt_engine::ClassifyDecision;
 
 for (name, decision) in result.column_names.iter().zip(&result.classification) {
     println!("{name}: {decision:?}"); // AboveCutoff / BelowCutoff / NoDecision
@@ -85,7 +85,7 @@ Aktifkan feature `serde` di `Cargo.toml`:
 
 ```toml
 [dependencies]
-mirtcat-engine = { version = "...", features = ["serde"] }
+mirt-engine = { version = "...", features = ["serde"] }
 ```
 
 ```rust

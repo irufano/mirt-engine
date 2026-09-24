@@ -9,8 +9,8 @@
 //! cargo run --example 02_item_selection_kl
 //! ```
 
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::{
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::{
     select_next_item, Criterion, GroupParams, ItemBank, ItemMeta, ItemSelectionDebug, PersonState,
     SelectionConfig,
 };

@@ -12,7 +12,7 @@ lebih informatif untuk kandidat tertentu.
 ## Mendefinisikan kategori & target proporsi
 
 ```rust
-use mirtcat_engine::content_balancing::{ContentBalancingConfig, ContentCategory};
+use mirt_engine::content_balancing::{ContentBalancingConfig, ContentCategory};
 use std::collections::HashMap;
 
 // Satu kategori per item di bank, indeks == ItemIndex.
@@ -47,8 +47,8 @@ pemanggil yang bertanggung jawab membangun vektornya.
 ## Alur pemakaian per-langkah
 
 ```rust
-use mirtcat_engine::content_balancing::narrow_candidates;
-use mirtcat_engine::{rank_candidates, select_next_item, SelectionConfig};
+use mirt_engine::content_balancing::narrow_candidates;
+use mirt_engine::{rank_candidates, select_next_item, SelectionConfig};
 
 let candidates: Vec<usize> = (0..n_items)
     .filter(|idx| !person.answered_items().contains(idx))

@@ -3,8 +3,8 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::{EstimationConfig, Method};
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::{EstimationConfig, Method};
 
 // Grid-based (default quadpts dari tabel nfact)
 let config_grid = EstimationConfig {

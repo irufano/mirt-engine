@@ -3,8 +3,8 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::stopping_rule::{evaluate, ClassifyDecision, ClassifyType, StoppingConfig};
-use mirtcat_engine::ThetaVector;
+use mirt_engine::stopping_rule::{evaluate, ClassifyDecision, ClassifyType, StoppingConfig};
+use mirt_engine::ThetaVector;
 
 let config = StoppingConfig {
     min_items: 1,

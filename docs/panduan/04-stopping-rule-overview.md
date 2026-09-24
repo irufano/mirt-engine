@@ -3,7 +3,7 @@
 ## Konsep dasar
 
 ```rust
-use mirtcat_engine::stopping_rule::{evaluate, StoppingConfig};
+use mirt_engine::stopping_rule::{evaluate, StoppingConfig};
 
 // person: PersonState sudah diupdate (record_answer + set_estimate) untuk langkah ini
 let config = StoppingConfig {
@@ -64,9 +64,9 @@ untuk demonstrasi langsung.
 ## Hook `CustomStop`
 
 ```rust
-use mirtcat_engine::stopping_rule::CustomStop;
+use mirt_engine::stopping_rule::CustomStop;
 
-let jangan_pernah_berhenti_sebelum_10_item = |person: &mirtcat_engine::PersonState| {
+let jangan_pernah_berhenti_sebelum_10_item = |person: &mirt_engine::PersonState| {
     person.n_answered() >= 10 && /* kondisi kustom lain */ true
 };
 let (decision, _) = evaluate(&config, &person, &bank, false, Some(&jangan_pernah_berhenti_sebelum_10_item))?;

@@ -3,7 +3,7 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::stopping_rule::{evaluate, ClassifyDecision, ClassifyType, StoppingConfig};
+use mirt_engine::stopping_rule::{evaluate, ClassifyDecision, ClassifyType, StoppingConfig};
 
 let config = StoppingConfig {
     min_items: 5,

@@ -1,12 +1,8 @@
-# mirtcat-engine
+# mirt-engine
 
-Engine Rust untuk **Multidimensional Computerized Adaptive Testing (MCAT)**
-— mengacu pada algoritma dan perilaku library R **mirt** dan **mirtCAT**,
-dipersempit ke skenario `nfact > 1` (multidimensional IRT). Didesain untuk
-dipakai sebagai dependency biasa di web API Rust (mis. Axum) atau project
-Rust lain, tanpa terikat framework tertentu.
+Engine Rust untuk **Multidimensional Computerized Adaptive Testing (MCAT)**, `nfact > 1` (multidimensional IRT). Didesain untuk dipakai sebagai dependency biasa di web API Rust (mis. Axum) atau project Rust lain, tanpa terikat framework tertentu.
 
-`mirtcat-engine` **tidak** melakukan kalibrasi model IRT dari data respons
+`mirt-engine` **tidak** melakukan kalibrasi model IRT dari data respons
 mentah (EM/MH-RM, marginal maximum likelihood — itu domain `mirt`). Engine
 ini menerima parameter item yang **sudah terkalibrasi** (slope, intercept,
 guessing, dst.) sebagai input, lalu menjalankan siklus adaptif di atasnya:
@@ -27,11 +23,11 @@ Belum dipublikasikan ke crates.io. Untuk memakainya dari project Rust lain:
 
 ```toml
 [dependencies]
-mirtcat-engine = { git = "https://github.com/irufano/mirtcat-engine" }
+mirt-engine = { git = "https://github.com/irufano/mirt-engine" }
 # atau, dari checkout lokal:
-# mirtcat-engine = { path = "../mirtcat-engine" }
+# mirt-engine = { path = "../mirt-engine" }
 # atau, setelah dipublikasikan:
-# mirtcat-engine = "0.1"
+# mirt-engine = "0.1"
 ```
 
 Fitur opsional `serde` mengaktifkan `Serialize`/`Deserialize` untuk
@@ -39,7 +35,7 @@ Fitur opsional `serde` mengaktifkan `Serialize`/`Deserialize` untuk
 HTTP/DB):
 
 ```toml
-mirtcat-engine = { version = "0.1", features = ["serde"] }
+mirt-engine = { version = "0.1", features = ["serde"] }
 ```
 
 Dependency inti hanya [`nalgebra`](https://crates.io/crates/nalgebra)
@@ -53,8 +49,8 @@ web apa pun.
 Menghitung probabilitas & informasi Fisher satu item (fondasi IRT, Fase 0):
 
 ```rust
-use mirtcat_engine::irt::{Dichotomous, ItemResponseModel};
-use mirtcat_engine::theta::ThetaVector;
+use mirt_engine::irt::{Dichotomous, ItemResponseModel};
+use mirt_engine::theta::ThetaVector;
 
 let item = Dichotomous::m2pl(vec![1.2, 0.8], 0.3).unwrap();
 let theta = ThetaVector::from_vec(vec![0.5, -0.2]);
@@ -112,15 +108,14 @@ GPL (>= 3):
   Interfaces for Multidimensional Item Response Theory Applications.
   *Journal of Statistical Software*, 71(5), 1–39.
 
-`mirtcat-engine` adalah **clean-room reimplementation** dari rumus/algoritma
+`mirt-engine` adalah **clean-room reimplementation** dari rumus/algoritma
 yang dipublikasikan di paper akademik (lih. daftar pustaka lengkap di
 `PLAN.md`), bukan terjemahan baris demi baris source `.R`/`.cpp` milik
 `mirt`/`mirtCAT` — source R dipakai semata sebagai rujukan perilaku yang
 harus disamai (nama kriteria, urutan pipeline, semantik parameter), bukan
-sebagai kode yang disalin. Ini memungkinkan `mirtcat-engine` berlisensi
-dual MIT/Apache-2.0 (lih. bawah) walau merujuk pada library GPL.
+sebagai kode yang disalin. Ini memungkinkan `mirt-engine` berlisensi
+MIT (lih. bawah) walau merujuk pada library GPL.
 
 ## Lisensi
 
-Dual-lisensi di bawah [MIT](LICENSE-MIT) atau [Apache License, Version 2.0](LICENSE-APACHE),
-sesuai pilihan Anda — standar ekosistem Rust.
+Dilisensikan di bawah [MIT License](LICENSE).

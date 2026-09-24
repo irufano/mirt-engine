@@ -1,6 +1,6 @@
 # Changelog
 
-Seluruh perubahan penting pada `mirtcat-engine` dicatat di file ini.
+Seluruh perubahan penting pada `mirt-engine` dicatat di file ini.
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).

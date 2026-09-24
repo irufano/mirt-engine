@@ -20,7 +20,7 @@ dengan skala standar (yang paling umum) menetapkan `gmeans = 0`, sehingga
 titik tengah distribusi — pilihan titik awal yang wajar sebelum ada
 informasi respons — bertepatan dengan vektor nol.
 
-`mirtcat-engine` mengikuti perilaku `mirtCAT` (`Person$initialize()`) apa
+`mirt-engine` mengikuti perilaku `mirtCAT` (`Person$initialize()`) apa
 adanya: **`theta_0` literal vektor nol** sepanjang `nfact`, bukan hasil
 membaca `gmeans` secara eksplisit setiap inisialisasi (meski secara konsep
 keduanya berhimpit untuk model yang lazim). Ini penting: `GroupParams`
@@ -52,7 +52,7 @@ awal. `mirtCAT` mendukung ini lewat `thetas.start`:
   offline banyak peserta sekaligus (`local_pattern` dengan `N` baris
   respons), diindeks per baris.
 
-`mirtcat-engine` merepresentasikan ini sebagai `ThetaStart::Fixed` (vektor)
+`mirt-engine` merepresentasikan ini sebagai `ThetaStart::Fixed` (vektor)
 dan `ThetaStart::PerPersonMatrix` (kumpulan vektor, diindeks lewat parameter
 `person_index` pada `initialize()`).
 

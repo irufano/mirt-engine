@@ -3,7 +3,7 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::{select_next_item, Criterion, SelectionConfig};
+use mirt_engine::{select_next_item, Criterion, SelectionConfig};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 

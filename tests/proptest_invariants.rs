@@ -17,11 +17,11 @@ use std::collections::HashMap;
 
 use proptest::prelude::*;
 
-use mirtcat_engine::content_balancing::{
+use mirt_engine::content_balancing::{
     narrow_candidates, ContentBalancingConfig, ContentCategory,
 };
-use mirtcat_engine::irt::{cumulative_information, Dichotomous, GradedResponse, ItemResponseModel};
-use mirtcat_engine::theta::ThetaVector;
+use mirt_engine::irt::{cumulative_information, Dichotomous, GradedResponse, ItemResponseModel};
+use mirt_engine::theta::ThetaVector;
 
 /// Slope per dimensi, dibatasi ke rentang yang wajar secara psikometrik
 /// (item ekstrem/nol tidak menambah cakupan invariant, cuma memperlambat

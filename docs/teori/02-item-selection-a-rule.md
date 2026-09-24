@@ -23,7 +23,7 @@ asimtotik berbobot, mendekati minimum error-variance untuk estimasi
 Info Fisher dari **satu** item dikotomus di `nfact > 1` selalu **rank 1**
 (lih. juga `docs/teori/02-item-selection-d-rule.md`) — sebelum cukup item
 terjawab, `total_info` bisa **singular**, dan invers biasa tidak
-terdefinisi. `mirtcat-engine` memakai **pseudo-invers Moore-Penrose** (via
+terdefinisi. `mirt-engine` memakai **pseudo-invers Moore-Penrose** (via
 SVD, `InfoMatrix::pseudo_inverse`) yang tetap memberi nilai valid & finite
 untuk matriks rank-defisien: arah yang belum terinformasi (`singular value
 ~ 0`) diperlakukan sebagai kontribusi nol ke pseudo-invers, bukan varians

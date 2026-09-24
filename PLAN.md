@@ -1,9 +1,9 @@
-# mirtcat-engine — Rencana Implementasi
+# mirt-engine — Rencana Implementasi
 
 > Engine Rust untuk **Multidimensional Computerized Adaptive Testing (MCAT)**,
 > mengacu pada algoritma dan perilaku library **mirt** dan **mirtCAT** (R),
 > dipersempit khusus ke skenario `nfact > 1` (multidimensional IRT).
-> Didesain agar bisa dipakai sebagai dependency biasa (`cargo add mirtcat-engine`)
+> Didesain agar bisa dipakai sebagai dependency biasa (`cargo add mirt-engine`)
 > di web API Rust (mis. Axum) maupun project Rust lain, tanpa terikat framework
 > tertentu.
 
@@ -15,7 +15,7 @@ lulus test — jangan tandai selesai berdasarkan asumsi.
 
 ## 1. Ringkasan & Tujuan
 
-`mirtcat-engine` menyediakan **mesin administrasi tes adaptif multidimensional**
+`mirt-engine` menyediakan **mesin administrasi tes adaptif multidimensional**
 (item selection, ability estimation, stopping rule, exposure control, content
 balancing) sebagai library murni (`no_std`-friendly di level algoritma inti,
 walau realistisnya akan pakai `std` untuk kesederhanaan awal). Library ini
@@ -52,7 +52,7 @@ guessing, dst.) sebagai input, lalu menjalankan siklus adaptif di atasnya.
 
 ### 1.3 Catatan Lisensi (penting, perlu keputusan pengguna)
 
-`mirt` dan `mirtCAT` berlisensi **GPL (>= 3)**. Agar `mirtcat-engine` bisa
+`mirt` dan `mirtCAT` berlisensi **GPL (>= 3)**. Agar `mirt-engine` bisa
 dipakai bebas di project Rust lain (mis. dengan lisensi MIT/Apache-2.0),
 implementasi **harus berupa clean-room reimplementation** dari rumus/algoritma
 yang dipublikasikan di paper akademik (Segall 1996, Chalmers 2012/2016, dst.),
@@ -115,7 +115,7 @@ bukan sebagai kode yang disalin.
 ## 3. Struktur Direktori (target akhir)
 
 ```
-mirtcat-engine/
+mirt-engine/
 ├── Cargo.toml
 ├── PLAN.md                        # dokumen ini
 ├── README.md
@@ -456,7 +456,7 @@ pertama disajikan, sesuai perilaku `mirtCAT` untuk `nfact > 1`.
 
 ### Definition of Done
 - [x] Semua checklist di atas tercentang
-- [x] `cargo test -p mirtcat-engine initial_theta` hijau (juga `cargo test` penuh: 45 test hijau, `cargo clippy --all-targets -- -D warnings` bersih, `cargo fmt --check` bersih)
+- [x] `cargo test -p mirt-engine initial_theta` hijau (juga `cargo test` penuh: 45 test hijau, `cargo clippy --all-targets -- -D warnings` bersih, `cargo fmt --check` bersih)
 - [x] Parity numerik dengan fixture R terverifikasi
 
 ---
@@ -799,7 +799,7 @@ khusus dimensi tinggi.
 
 ### Definition of Done
 - [x] Semua checklist di atas tercentang
-- [x] `cargo test -p mirtcat-engine ability_estimation` hijau
+- [x] `cargo test -p mirt-engine ability_estimation` hijau
 - [x] Parity numerik EAP/MAP/ML dengan fixture R terverifikasi dalam toleransi yang didokumentasikan
 
 ---
@@ -921,7 +921,7 @@ langsung dari `theta` berupa vektor pada MCAT.
 
 ### Definition of Done
 - [x] Semua checklist di atas tercentang
-- [x] `cargo test -p mirtcat-engine stopping_rule` hijau
+- [x] `cargo test -p mirt-engine stopping_rule` hijau
 - [x] Parity titik-berhenti & keputusan klasifikasi dengan fixture R terverifikasi
 
 ---

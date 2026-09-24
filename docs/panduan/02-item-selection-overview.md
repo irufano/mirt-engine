@@ -8,7 +8,7 @@ Lih. `docs/teori/02-item-selection-overview.md` untuk landasan & kenapa
 `nfact > 1` membatasi kriteria yang tersedia.
 
 ```rust
-use mirtcat_engine::{
+use mirt_engine::{
     select_next_item, Criterion, GroupParams, PersonState, SelectionConfig,
 };
 use rand::rngs::StdRng;
@@ -52,7 +52,7 @@ dipakai `TRule`/`ARule`/`WRule` (+ varian prior), **diabaikan** kriteria
 lain. `None` → default `vec![1.0; nfact]` (semua dimensi setara).
 
 ```rust
-use mirtcat_engine::{Criterion, SelectionConfig};
+use mirt_engine::{Criterion, SelectionConfig};
 
 let config = SelectionConfig {
     criterion: Criterion::TRule { prior: false },
@@ -76,7 +76,7 @@ mau memberi bobot relatif antar dimensi independen.
 ## `PersonState`: theta & item terjawab
 
 ```rust
-use mirtcat_engine::PersonState;
+use mirt_engine::PersonState;
 
 let mut person = PersonState::new(3); // theta/SE nol, belum ada item terjawab
 // atau: PersonState::from_theta_and_se(theta0, se0) hasil Fase 1

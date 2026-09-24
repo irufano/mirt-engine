@@ -23,12 +23,12 @@
 //! cargo run --example 07_final_result --features serde
 //! ```
 
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::initial_theta::{initialize, InitialThetaConfig};
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::stopping_rule::{evaluate as evaluate_stopping, StoppingConfig};
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::initial_theta::{initialize, InitialThetaConfig};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::stopping_rule::{evaluate as evaluate_stopping, StoppingConfig};
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{
     select_next_item, Criterion, EstimationConfig, GroupParams, ItemBank, ItemMeta, McatResult,
     Method, PersonState, SelectionConfig, ThetaVector,
 };
@@ -61,7 +61,7 @@ fn build_group() -> GroupParams {
 /// Sampel respons dikotomus dari peluang model di `theta_true` (padanan
 /// `local_pattern` sintetis, bukan diketahui pipeline seleksi/estimasi).
 fn sample_response(
-    item: &dyn mirtcat_engine::irt::ItemResponseModel,
+    item: &dyn mirt_engine::irt::ItemResponseModel,
     theta_true: &ThetaVector,
     rng: &mut impl Rng,
 ) -> usize {

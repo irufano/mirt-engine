@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Kalkulator cross-check INDEPENDEN (bukan R, bukan port dari kode Rust) untuk
-fixture parity testing Fase 0 mirtcat-engine.
+fixture parity testing Fase 0 mirt-engine.
 
 Sumber formula (dipakai langsung, tidak menyalin kode `mirt`/`mirtCAT`):
   - Dikotomus (M2PL/M3PL/M4PL): Reckase (2009), Multidimensional Item

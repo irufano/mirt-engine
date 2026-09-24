@@ -12,7 +12,7 @@ dilaporkan adalah akar diagonal matriks tersebut — **bukan** seluruh
 matriks, karena off-diagonal menyatakan kovariansi antar-dimensi, bukan
 presisi satu dimensi (Reckase, 2009, bab 3).
 
-`mirtcat-engine` merepresentasikan ini sebagai tiga newtype tipis di atas
+`mirt-engine` merepresentasikan ini sebagai tiga newtype tipis di atas
 `nalgebra`:
 
 - `ThetaVector` — vektor `theta`, panjang `nfact`.
@@ -47,7 +47,7 @@ Bentuk ini mengikuti Reckase (2009, bab 4) dan setara secara fungsional
 dengan `P_dich()` di `mirt/src/traceLinePts.cpp` (dibaca sebagai rujukan
 *perilaku* yang harus disamai — bukan disalin, lih. `PLAN.md` §1.3).
 
-`mirtcat-engine` juga mendefinisikan **arah kesulitan multidimensional**
+`mirt-engine` juga mendefinisikan **arah kesulitan multidimensional**
 secara implisit lewat kombinasi `a`/`d` (setara konsep `MDIFF`/`MDISC` di
 `mirt`): `MDISC = ||a||` (norma Euclidean vektor slope) menyatakan daya beda
 gabungan lintas dimensi, dan `MDIFF = -d / MDISC` menyatakan kesulitan pada
@@ -67,7 +67,7 @@ P_k(theta)         = Pstar_{k-1}(theta) - Pstar_k(theta)   untuk k = 1..K
 
 `Pstar_k` diinterpretasikan sebagai `P(respons >= kategori k+1 | theta)`.
 Supaya `P_k >= 0` untuk semua `k`, boundary `d_1 > d_2 > ... > d_{K-1}`
-**harus** terurut menurun ketat — `mirtcat-engine` memvalidasi ini saat
+**harus** terurut menurun ketat — `mirt-engine` memvalidasi ini saat
 konstruksi (`GradedResponse::new`, error `MirtCatError::InvalidParameter`
 bila tidak terurut), berbeda dari `mirt` yang secara diam-diam menghasilkan
 probabilitas nol untuk parameter tak-valid (`P_graded()`,
@@ -102,7 +102,7 @@ I_2PL(theta) = P(theta) * (1 - P(theta)) * a * a^T
 
 dengan `P(theta) = P(u=1|theta)`. Untuk M3PL/M4PL, faktor skalarnya
 berubah menjadi `((u-g) * P*(theta) * (1-P*(theta)))^2 / (P(theta)(1-P(theta)))`,
-tapi struktur `a * a^T`-nya sama. `mirtcat-engine` menguji kedua bentuk
+tapi struktur `a * a^T`-nya sama. `mirt-engine` menguji kedua bentuk
 tertutup ini sebagai *sanity check* unit test (kasus 1 dimensi) sebelum
 diverifikasi lintas-dimensi lewat fixture (lih. §5).
 
@@ -114,7 +114,7 @@ min_eigenvalue}` di `src/theta.rs`.
 
 ## 5. Validasi silang dengan `mirt`/`mirtCAT`
 
-`mirtcat-engine` adalah *clean-room reimplementation* dari formula di atas
+`mirt-engine` adalah *clean-room reimplementation* dari formula di atas
 (bukan port baris-demi-baris dari `mirt`/`mirtCAT`, lih. `PLAN.md` §1.3).
 Untuk memverifikasi kesesuaian numerik, `tests/fixtures/generate_r_fixtures.R`
 membangun item dari parameter tetap lewat `mirtCAT::generate.mirt_object()`

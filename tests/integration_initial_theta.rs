@@ -10,8 +10,8 @@
 //! `run_local()` (divalidasi dengan R 4.6.1, mirt 1.47, mirtCAT 1.14 — lih.
 //! field `source` di file JSON).
 
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{GroupParams, InitialThetaConfig, ThetaStart, ThetaVector};
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{GroupParams, InitialThetaConfig, ThetaStart, ThetaVector};
 use nalgebra::DMatrix;
 use serde_json::Value;
 use std::fs;
@@ -58,7 +58,7 @@ fn assert_case_matches(fixture: &Value, case_name: &str) {
         ..Default::default()
     };
 
-    let (theta0, se0, _, _) = mirtcat_engine::initial_theta::initialize(&config, &group, 0)
+    let (theta0, se0, _, _) = mirt_engine::initial_theta::initialize(&config, &group, 0)
         .expect("konfigurasi fixture harus valid");
 
     let expected_theta0 = f64_array(&case["theta0"]);

@@ -3,7 +3,7 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::{select_next_item, Criterion, SelectionConfig};
+use mirt_engine::{select_next_item, Criterion, SelectionConfig};
 
 let config_kl = SelectionConfig {
     criterion: Criterion::Kl { delta: 0.1 },

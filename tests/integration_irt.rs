@@ -15,8 +15,8 @@
 //! `mirt/R/utils.R::ItemInfo2`) sebagai rujukan perilaku, bukan disalin
 //! (clean-room reimplementation, lih. `PLAN.md` §1.3).
 
-use mirtcat_engine::irt::{Dichotomous, GradedResponse, ItemResponseModel};
-use mirtcat_engine::theta::ThetaVector;
+use mirt_engine::irt::{Dichotomous, GradedResponse, ItemResponseModel};
+use mirt_engine::theta::ThetaVector;
 use serde_json::Value;
 use std::fs;
 

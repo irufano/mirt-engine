@@ -3,7 +3,7 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::{select_next_item, Criterion, SelectionConfig};
+use mirt_engine::{select_next_item, Criterion, SelectionConfig};
 
 let config = SelectionConfig {
     criterion: Criterion::ARule { prior: false }, // atau `prior: true` untuk APrule

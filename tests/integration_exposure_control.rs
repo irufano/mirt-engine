@@ -17,11 +17,11 @@
 //!   exposure=0.0 tidak pernah muncul; `start_item` selalu muncul tepat
 //!   `n_sim` kali), bukan kecocokan frekuensi R vs Rust (RNG beda stream).
 
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{
     rank_candidates, Criterion, EstimationConfig, GroupParams, ItemBank, ItemMeta, Method,
     PersonState, SelectionConfig, ThetaVector,
 };

@@ -4,7 +4,7 @@
 
 ```rust
 use std::time::Duration;
-use mirtcat_engine::stopping_rule::{evaluate, StoppingConfig};
+use mirt_engine::stopping_rule::{evaluate, StoppingConfig};
 
 let config = StoppingConfig {
     max_items: 30,

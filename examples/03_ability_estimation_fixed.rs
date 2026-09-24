@@ -7,10 +7,10 @@
 //! cargo run --example 03_ability_estimation_fixed
 //! ```
 
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::theta::SEVector;
-use mirtcat_engine::{
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::theta::SEVector;
+use mirt_engine::{
     EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector,
 };
 

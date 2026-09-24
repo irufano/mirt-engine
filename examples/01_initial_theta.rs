@@ -7,15 +7,15 @@
 //! cargo run --example 01_initial_theta
 //! ```
 
-use mirtcat_engine::initial_theta::{initialize, InitialThetaConfig, ThetaStart};
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{GroupParams, ThetaVector};
+use mirt_engine::initial_theta::{initialize, InitialThetaConfig, ThetaStart};
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{GroupParams, ThetaVector};
 use nalgebra::DMatrix;
 
 fn print_result(
     label: &str,
     theta0: &ThetaVector,
-    se0: &mirtcat_engine::SEVector,
+    se0: &mirt_engine::SEVector,
     weights: &[f64],
 ) {
     println!("  {label}");

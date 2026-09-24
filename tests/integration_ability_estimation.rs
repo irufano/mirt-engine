@@ -26,10 +26,10 @@
 //!   Rust untuk WLE; algoritma sama tapi presisi kuadratur untuk EAPsum),
 //!   dites longgar sesuai PLAN.md.
 
-use mirtcat_engine::ability_estimation::{eap_sum_score_table, estimate};
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{
+use mirt_engine::ability_estimation::{eap_sum_score_table, estimate};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{
     EstimationConfig, GroupParams, ItemBank, ItemMeta, Method, PersonState, ThetaVector,
 };
 use nalgebra::DMatrix;
@@ -386,7 +386,7 @@ fn nfact5_quadpts_matches_mirtcat_default_table() {
     assert_eq!(case["nfact"].as_u64().unwrap(), 5);
     assert_eq!(case["quadpts"].as_u64().unwrap(), 7);
     assert_eq!(
-        mirtcat_engine::ability_estimation::quadrature::default_quadpts(5),
+        mirt_engine::ability_estimation::quadrature::default_quadpts(5),
         7
     );
 }

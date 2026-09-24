@@ -3,8 +3,8 @@
 ## Quickstart
 
 ```rust
-use mirtcat_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
-use mirtcat_engine::rank_candidates;
+use mirt_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
+use mirt_engine::rank_candidates;
 
 let mode = ExposureMode::Randomesque(vec![3; n_items]); // top-3 di semua posisi
 let exp_config = ExposureControlConfig::new(mode, n_items, false)?;

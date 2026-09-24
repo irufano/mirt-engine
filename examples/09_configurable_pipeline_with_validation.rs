@@ -59,16 +59,16 @@
 //! cargo run --example 09_configurable_pipeline_with_validation --features serde
 //! ```
 
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::content_balancing::{narrow_candidates, ContentBalancingConfig};
-use mirtcat_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
-use mirtcat_engine::initial_theta::{initialize, InitialThetaConfig};
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::stopping_rule::{
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::content_balancing::{narrow_candidates, ContentBalancingConfig};
+use mirt_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
+use mirt_engine::initial_theta::{initialize, InitialThetaConfig};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::stopping_rule::{
     evaluate as evaluate_stopping, ClassifyType, StopDecision, StoppingConfig,
 };
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{
     rank_candidates, select_next_item, Criterion, EstimationConfig, GroupParams, ItemBank,
     ItemMeta, McatResult, MirtCatError, Method, PersonState, SelectionConfig, ThetaVector,
 };
@@ -293,7 +293,7 @@ fn build_content_balancing_config(bank: &ItemBank) -> ContentBalancingConfig {
 }
 
 fn sample_response(
-    item: &dyn mirtcat_engine::irt::ItemResponseModel,
+    item: &dyn mirt_engine::irt::ItemResponseModel,
     theta_true: &ThetaVector,
     rng: &mut impl Rng,
 ) -> usize {

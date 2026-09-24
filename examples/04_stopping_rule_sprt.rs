@@ -14,9 +14,9 @@
 //! cargo run --example 04_stopping_rule_sprt
 //! ```
 
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::stopping_rule::{evaluate, ClassifyDecision, ClassifyType, StoppingConfig};
-use mirtcat_engine::{ItemBank, ItemMeta, PersonState, ThetaVector};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::stopping_rule::{evaluate, ClassifyDecision, ClassifyType, StoppingConfig};
+use mirt_engine::{ItemBank, ItemMeta, PersonState, ThetaVector};
 
 fn build_bank() -> ItemBank {
     let mut bank = ItemBank::new();

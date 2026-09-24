@@ -22,9 +22,9 @@ sumber tunggal untuk `SE_0` (dan `gmeans` untuk observability lewat
 `InitialThetaDebug`).
 
 `gmeans`/`gcov` di dalam `GroupParams` bukan dihitung oleh
-`mirtcat-engine` — itu parameter **populasi** hasil kalibrasi model IRT
+`mirt-engine` — itu parameter **populasi** hasil kalibrasi model IRT
 (`mirt` atau sejenisnya) terhadap data respons, di luar scope engine ini
-(lih. `PLAN.md` §1.2: kalibrasi bukan tanggung jawab `mirtcat-engine`, ia
+(lih. `PLAN.md` §1.2: kalibrasi bukan tanggung jawab `mirt-engine`, ia
 hanya *consumer* parameter yang sudah dikalibrasi). Alur di dunia nyata:
 
 1. **Kalibrasi di luar Rust**, mis. lewat `mirt` di R:
@@ -36,7 +36,7 @@ hanya *consumer* parameter yang sudah dikalibrasi). Alur di dunia nyata:
    co$cov     # <- gcov, matriks nfact x nfact
    ```
    `data_respons` di sini **bukan** log jawaban dari sesi CAT yang dijalankan
-   `mirtcat-engine` — itu data respons historis/pilot (baris = peserta,
+   `mirt-engine` — itu data respons historis/pilot (baris = peserta,
    kolom = item, nilai = respons `0`/`1` atau kategori), biasanya dari
    administrasi tes **non-adaptif** (semua peserta menjawab semua/hampir
    semua item), dikumpulkan **sebelum** CAT dijalankan, semata untuk
@@ -46,8 +46,8 @@ hanya *consumer* parameter yang sudah dikalibrasi). Alur di dunia nyata:
 2. **Salin angka hasil kalibrasi itu ke Rust** (lewat config/JSON/DB — engine
    tidak membaca file model `mirt` langsung):
    ```rust
-   use mirtcat_engine::{GroupParams, ThetaVector};
-   use mirtcat_engine::theta::InfoMatrix;
+   use mirt_engine::{GroupParams, ThetaVector};
+   use mirt_engine::theta::InfoMatrix;
    use nalgebra::DMatrix;
 
    let gmeans = ThetaVector::from_vec(vec![/* dari co$means */]);
@@ -75,8 +75,8 @@ satu `GroupParams` yang "menyesuaikan" per peserta.
 ## Quickstart: default (tanpa override)
 
 ```rust
-use mirtcat_engine::initial_theta::{initialize, InitialThetaConfig};
-use mirtcat_engine::GroupParams;
+use mirt_engine::initial_theta::{initialize, InitialThetaConfig};
+use mirt_engine::GroupParams;
 
 let group = GroupParams::standard_normal(3); // gmeans=0, gcov=identitas
 let config = InitialThetaConfig::default();
@@ -100,8 +100,8 @@ menempatkan peserta pada titik `theta` tertentu (mis. simulasi Monte Carlo
 untuk memvalidasi presisi CAT pada nilai `theta` "sebenarnya" yang diketahui).
 
 ```rust
-use mirtcat_engine::initial_theta::{initialize, InitialThetaConfig, ThetaStart};
-use mirtcat_engine::{GroupParams, ThetaVector};
+use mirt_engine::initial_theta::{initialize, InitialThetaConfig, ThetaStart};
+use mirt_engine::{GroupParams, ThetaVector};
 
 let group = GroupParams::standard_normal(2);
 let config = InitialThetaConfig {
@@ -126,8 +126,8 @@ statistik desain CAT lewat ribuan replikasi), tiap peserta bisa punya titik
 awal berbeda:
 
 ```rust
-use mirtcat_engine::initial_theta::{initialize, InitialThetaConfig, ThetaStart};
-use mirtcat_engine::{GroupParams, ThetaVector};
+use mirt_engine::initial_theta::{initialize, InitialThetaConfig, ThetaStart};
+use mirt_engine::{GroupParams, ThetaVector};
 
 let group = GroupParams::standard_normal(2);
 let config = InitialThetaConfig {
@@ -154,8 +154,8 @@ Aktifkan `debug: true` untuk melihat jalur `ThetaStart` yang dipakai serta
 yang dikembalikan (prinsip desain #7, `PLAN.md`):
 
 ```rust
-use mirtcat_engine::initial_theta::{initialize, InitialThetaConfig};
-use mirtcat_engine::GroupParams;
+use mirt_engine::initial_theta::{initialize, InitialThetaConfig};
+use mirt_engine::GroupParams;
 
 let group = GroupParams::standard_normal(2);
 let config = InitialThetaConfig { debug: true, ..Default::default() };

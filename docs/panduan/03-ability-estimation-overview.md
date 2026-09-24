@@ -8,8 +8,8 @@
 untuk landasan & tabel `quadpts` default.
 
 ```rust
-use mirtcat_engine::ability_estimation::estimate;
-use mirtcat_engine::{EstimationConfig, GroupParams, PersonState};
+use mirt_engine::ability_estimation::estimate;
+use mirt_engine::{EstimationConfig, GroupParams, PersonState};
 
 // `bank: ItemBank` sudah ada (lih. docs/panduan/00-instalasi-dan-quickstart.md)
 let group = GroupParams::standard_normal(bank.nfact().unwrap());
@@ -38,7 +38,7 @@ Fase 3 memperluas `PersonState` (Fase 2) dengan SE & kategori respons —
 (diperlukan untuk menghitung likelihood):
 
 ```rust
-use mirtcat_engine::PersonState;
+use mirt_engine::PersonState;
 
 let mut person = PersonState::new(3); // theta & SE nol (placeholder mentah)
 // atau, hasil Fase 1 (initial_theta::initialize):

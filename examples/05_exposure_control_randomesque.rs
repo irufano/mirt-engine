@@ -21,10 +21,10 @@
 //! cargo run --example 05_exposure_control_randomesque
 //! ```
 
-use mirtcat_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
-use mirtcat_engine::irt::Dichotomous;
-use mirtcat_engine::theta::InfoMatrix;
-use mirtcat_engine::{
+use mirt_engine::exposure_control::{select_with_exposure, ExposureControlConfig, ExposureMode};
+use mirt_engine::irt::Dichotomous;
+use mirt_engine::theta::InfoMatrix;
+use mirt_engine::{
     rank_candidates, Criterion, GroupParams, ItemBank, ItemMeta, PersonState, SelectionConfig,
     ThetaVector,
 };

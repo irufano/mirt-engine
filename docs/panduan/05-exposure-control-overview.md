@@ -20,7 +20,7 @@ ke item tertentu), exposure control kurang berdampak — pertimbangkan
 ## Memilih mode
 
 ```rust
-use mirtcat_engine::exposure_control::{ExposureControlConfig, ExposureMode};
+use mirt_engine::exposure_control::{ExposureControlConfig, ExposureMode};
 
 // Otomatis, gaya mirtCAT: deteksi dari rentang nilai.
 let mode = ExposureMode::from_values(&exposure_values)?;
@@ -57,8 +57,8 @@ atau `Random`.
 ## Alur pemakaian per-langkah
 
 ```rust
-use mirtcat_engine::{rank_candidates, SelectionConfig};
-use mirtcat_engine::exposure_control::select_with_exposure;
+use mirt_engine::{rank_candidates, SelectionConfig};
+use mirt_engine::exposure_control::select_with_exposure;
 
 let candidates: Vec<usize> = (0..n_items)
     .filter(|idx| !person.answered_items().contains(idx) && valid_items[*idx])
