@@ -199,6 +199,15 @@ pub struct StoppingRuleDebug {
     pub sprt_log_likelihood_ratio: Option<f64>,
     /// `Some((a, b))` hanya untuk mode `Sprt`.
     pub sprt_bounds: Option<(f64, f64)>,
+    /// `Some` hanya untuk mode `Ci`: batas bawah interval kepercayaan
+    /// per-dimensi, `theta - |z_alpha|·SE` (`alpha` = ekor satu sisi, mis.
+    /// 0.05 -> z 1.645). `-Inf` bila SE `NaN`.
+    pub ci_lower: Option<Vec<f64>>,
+    /// `Some` hanya untuk mode `Ci`: batas atas, `theta + |z_alpha|·SE`.
+    pub ci_upper: Option<Vec<f64>>,
+    /// `Some` hanya untuk mode `Ci`: cutoff per-dimensi yang dibandingkan
+    /// dengan interval di atas (dimensi terklasifikasi bila cutoff di luarnya).
+    pub ci_cutoffs: Option<Vec<f64>>,
 }
 
 /// Hook kustom pengguna untuk menghentikan sesi -- padanan `customStop` R.
@@ -281,6 +290,8 @@ pub fn evaluate(
 
     let mut debug_sprt_llr: Option<f64> = None;
     let mut debug_sprt_bounds: Option<(f64, f64)> = None;
+    // (lower, upper, cutoffs) -- hanya mode `Ci`.
+    let mut debug_ci: Option<(Vec<f64>, Vec<f64>, Vec<f64>)> = None;
 
     if person.n_answered() >= config.min_items {
         match &config.classify {
@@ -314,6 +325,10 @@ pub fn evaluate(
                 }
                 let (met, decisions) =
                     classify_ci::evaluate(person.theta(), person.se(), cutoffs, *alpha);
+                if config.debug {
+                    let (lower, upper) = classify_ci::interval(person.theta(), person.se(), *alpha);
+                    debug_ci = Some((lower, upper, cutoffs.clone()));
+                }
                 let all_met = met.iter().all(|&m| m);
                 met_classify = Some(met);
                 classification = decisions;
@@ -365,6 +380,10 @@ pub fn evaluate(
         terminated_early,
     };
 
+    let (ci_lower, ci_upper, ci_cutoffs) = match debug_ci {
+        Some((lower, upper, cutoffs)) => (Some(lower), Some(upper), Some(cutoffs)),
+        None => (None, None, None),
+    };
     let debug = config.debug.then(|| StoppingRuleDebug {
         se_values: person.se().clone(),
         delta_theta_values: match person.previous_theta() {
@@ -375,6 +394,9 @@ pub fn evaluate(
         },
         sprt_log_likelihood_ratio: debug_sprt_llr,
         sprt_bounds: debug_sprt_bounds,
+        ci_lower,
+        ci_upper,
+        ci_cutoffs,
     });
 
     Ok((decision, debug))
@@ -666,6 +688,34 @@ mod tests {
         assert_eq!(debug.se_values, *person.se());
         assert!(debug.sprt_log_likelihood_ratio.is_none());
         assert!(debug.sprt_bounds.is_none());
+        assert!(debug.ci_lower.is_none() && debug.ci_upper.is_none() && debug.ci_cutoffs.is_none());
+    }
+
+    #[test]
+    fn debug_true_fills_ci_fields_for_ci_mode_only() {
+        let bank = bank_1item_2d();
+        let config = StoppingConfig {
+            classify: ClassifyType::Ci {
+                cutoffs: vec![0.0, 0.5],
+                alpha: 0.05,
+            },
+            debug: true,
+            ..Default::default()
+        };
+        let mut person = person_with_se(vec![0.3, 1.0]);
+        person.record_answer(0, 1);
+        let (_, debug) = evaluate(&config, &person, &bank, false, None).unwrap();
+        let debug = debug.unwrap();
+        let (lower, upper) = (debug.ci_lower.unwrap(), debug.ci_upper.unwrap());
+        assert_eq!(debug.ci_cutoffs.unwrap(), vec![0.0, 0.5]);
+        assert_eq!(lower.len(), 2);
+        for i in 0..2 {
+            // alpha adalah ekor satu sisi: |z_0.05| = 1.644854.
+            let half = 1.644854 * person.se()[i];
+            assert!((lower[i] - (person.theta()[i] - half)).abs() < 1e-4);
+            assert!((upper[i] - (person.theta()[i] + half)).abs() < 1e-4);
+        }
+        assert!(debug.sprt_log_likelihood_ratio.is_none());
     }
 
     #[test]

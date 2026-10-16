@@ -853,7 +853,7 @@ langsung dari `theta` berupa vektor pada MCAT.
 - `stopping_rule::ClassifyType` — enum `None`, `Ci { cutoffs: Vec<f64>, alpha: f64 }`, `Sprt { lower: ThetaVector, upper: ThetaVector, alpha: f64, beta: f64 }`.
 - `stopping_rule::StoppingConfig { min_items: usize, max_items: usize, max_time: Option<Duration>, min_sem: Vec<f64>, delta_thetas: Vec<f64>, classify: ClassifyType, allow_constrain_breaks: bool, debug: bool }` — `debug` default `false` (prinsip desain #7).
 - `stopping_rule::StopDecision { stop_now: bool, met_sem: Vec<bool>, met_delta_thetas: Vec<bool>, met_classify: Option<Vec<bool>>, classification: Vec<ClassifyDecision>, terminated_early: bool }`.
-- `stopping_rule::StoppingRuleDebug { se_values: SEVector, delta_theta_values: Vec<f64>, sprt_log_likelihood_ratio: Option<f64>, sprt_bounds: Option<(f64, f64)> }` — nilai mentah di balik `met_sem`/`met_delta_thetas`/`met_classify` (mis. SE aktual, bukan cuma boolean lolos/tidak), dan detail rasio log-likelihood/batas `[a,b]` untuk mode `Sprt`.
+- `stopping_rule::StoppingRuleDebug { se_values: SEVector, delta_theta_values: Vec<f64>, sprt_log_likelihood_ratio: Option<f64>, sprt_bounds: Option<(f64, f64)>, ci_lower: Option<Vec<f64>>, ci_upper: Option<Vec<f64>>, ci_cutoffs: Option<Vec<f64>> }` — nilai mentah di balik `met_sem`/`met_delta_thetas`/`met_classify` (mis. SE aktual, bukan cuma boolean lolos/tidak), detail rasio log-likelihood/batas `[a,b]` untuk mode `Sprt`, dan batas interval `theta ± |z_alpha|·SE` + cutoff per-dimensi untuk mode `Ci`.
 - `stopping_rule::evaluate(config, person_state, test_state) -> (StopDecision, Option<StoppingRuleDebug>)`.
 - `stopping_rule::CustomStop` — trait objek (`Fn(&PersonState) -> bool`) untuk hook kustom pengguna.
 
@@ -866,7 +866,7 @@ langsung dari `theta` berupa vektor pada MCAT.
 - [x] `max_items_time.rs` — kondisi `max_items`/`max_time`
 - [x] Dukungan `CustomStop` (trait objek/closure)
 - [x] Guard `allow_constrain_breaks`
-- [x] Dukungan debug trace opsional (`StoppingConfig::debug`, default `false`) → `Option<StoppingRuleDebug>` (nilai SE/delta-theta mentah, rasio log-likelihood SPRT)
+- [x] Dukungan debug trace opsional (`StoppingConfig::debug`, default `false`) → `Option<StoppingRuleDebug>` (nilai SE/delta-theta mentah, rasio log-likelihood SPRT, batas interval & cutoff CI)
 
 ### Checklist Unit Test
 - [x] `met_SEM` — stop hanya ketika **semua** dimensi di bawah `min_SEM`; satu dimensi belum memenuhi → tidak stop

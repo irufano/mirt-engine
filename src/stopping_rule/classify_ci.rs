@@ -52,9 +52,46 @@ pub(crate) fn evaluate(
     (met, decisions)
 }
 
+/// Batas `(bawah, atas)` interval kepercayaan per-dimensi, `theta ± |z_alpha|·SE`
+/// -- kriteria `evaluate` ekuivalen "cutoff berada di luar interval ini".
+/// Hanya untuk jejak debug; tidak memengaruhi keputusan. `SE` `NaN` diperlakukan
+/// `Inf` seperti `evaluate` (batas -> `-Inf`/`+Inf`).
+pub(crate) fn interval(theta: &ThetaVector, se: &SEVector, alpha: f64) -> (Vec<f64>, Vec<f64>) {
+    let z = crate::ability_estimation::quadrature::inverse_normal_cdf(alpha).abs();
+    (0..theta.nfact())
+        .map(|i| {
+            let se_i = if se[i].is_nan() { f64::INFINITY } else { se[i] };
+            (theta[i] - z * se_i, theta[i] + z * se_i)
+        })
+        .unzip()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interval_excludes_cutoff_exactly_when_dimension_is_classified() {
+        let theta = ThetaVector::from_vec(vec![3.0, 0.05]);
+        let se = SEVector::from_vec(vec![0.3, 1.0]);
+        let cutoffs = [0.0, 0.0];
+        let (met, _) = evaluate(&theta, &se, &cutoffs, 0.05);
+        let (lower, upper) = interval(&theta, &se, 0.05);
+        for i in 0..2 {
+            assert!(lower[i] < theta[i] && theta[i] < upper[i]);
+            let outside = cutoffs[i] < lower[i] || cutoffs[i] > upper[i];
+            assert_eq!(met[i], outside, "dimensi {i}");
+        }
+    }
+
+    #[test]
+    fn interval_with_nan_se_is_unbounded() {
+        let theta = ThetaVector::from_vec(vec![1.0]);
+        let se = SEVector::from_vec(vec![f64::NAN]);
+        let (lower, upper) = interval(&theta, &se, 0.05);
+        assert_eq!(lower, vec![f64::NEG_INFINITY]);
+        assert_eq!(upper, vec![f64::INFINITY]);
+    }
 
     #[test]
     fn confident_dimension_above_cutoff_is_classified() {
