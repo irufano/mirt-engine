@@ -29,6 +29,24 @@ fn load_fixture() -> Value {
     serde_json::from_str(&raw).expect("fixture harus JSON valid")
 }
 
+fn expected_mdisc_mdiff(fixture: &Value, case_name: &str) -> (f64, Vec<f64>) {
+    let case = &fixture["cases"][case_name];
+    let mdiff = case["mdiff"]
+        .as_array()
+        .expect("mdiff array")
+        .iter()
+        .map(|v| v.as_f64().unwrap())
+        .collect();
+    (case["mdisc"].as_f64().expect("mdisc number"), mdiff)
+}
+
+fn assert_close(label: &str, got: f64, expected: f64, tolerance: f64) {
+    assert!(
+        (got - expected).abs() < tolerance,
+        "[{label}] rust={got}, fixture={expected}"
+    );
+}
+
 fn assert_case_matches(
     fixture: &Value,
     case_name: &str,
@@ -120,4 +138,54 @@ fn dichotomous_m2pl_3d_matches_fixture() {
     let tol = fixture["tolerance"].as_f64().unwrap();
     let item = Dichotomous::m2pl(vec![0.9, 0.7, 1.1], 0.0).unwrap();
     assert_case_matches(&fixture, "m2pl_3d", &item, tol);
+}
+
+#[test]
+fn dichotomous_mdisc_mdiff_match_mirt_fixture() {
+    let fixture = load_fixture();
+    let tol = fixture["tolerance"].as_f64().unwrap();
+    let items = [
+        ("m2pl_2d", Dichotomous::m2pl(vec![1.2, 0.8], 0.3).unwrap()),
+        (
+            "m3pl_2d",
+            Dichotomous::m3pl(vec![1.0, 1.0], -0.5, 0.2).unwrap(),
+        ),
+        (
+            "m2pl_3d",
+            Dichotomous::m2pl(vec![0.9, 0.7, 1.1], 0.0).unwrap(),
+        ),
+    ];
+    for (case_name, item) in items {
+        let (mdisc, mdiff) = expected_mdisc_mdiff(&fixture, case_name);
+        assert_eq!(mdiff.len(), 1, "[{case_name}] item dikotomus punya 1 MDIFF");
+        assert_close(case_name, item.mdisc(), mdisc, tol);
+        assert_close(case_name, item.mdiff(), mdiff[0], tol);
+    }
+}
+
+#[test]
+fn graded_response_mdisc_mdiff_match_mirt_fixture() {
+    let fixture = load_fixture();
+    let tol = fixture["tolerance"].as_f64().unwrap();
+    let item = GradedResponse::new(vec![1.1, 0.6], vec![1.5, 0.2, -1.2]).unwrap();
+    let (mdisc, mdiff) = expected_mdisc_mdiff(&fixture, "graded_2d");
+    assert_close("graded_2d mdisc", item.mdisc(), mdisc, tol);
+    let got = item.mdiff();
+    assert_eq!(got.len(), mdiff.len());
+    for (k, (g, e)) in got.iter().zip(&mdiff).enumerate() {
+        assert_close(&format!("graded_2d mdiff[{k}]"), *g, *e, tol);
+    }
+}
+
+/// Contoh AC-11 story st-006 (`engaugemetrics-specs`): angka yang sama
+/// harus muncul di frontend.
+#[test]
+fn mdisc_mdiff_match_spec_examples() {
+    let two_dim = Dichotomous::m2pl(vec![1.0, 1.0], 0.0).unwrap();
+    assert_close("2D", two_dim.mdisc(), 2.0_f64.sqrt(), 1e-12);
+    assert_close("2D", two_dim.mdiff(), 0.0, 1e-12);
+
+    let one_dim = Dichotomous::m2pl(vec![0.9], 1.35).unwrap();
+    assert_close("1D", one_dim.mdisc(), 0.9, 1e-12);
+    assert_close("1D", one_dim.mdiff(), -1.5, 1e-12);
 }

@@ -5,7 +5,7 @@
 use nalgebra::DMatrix;
 
 use super::model::ItemResponseModel;
-use super::probability::{linear_predictor, logistic};
+use super::probability::{linear_predictor, logistic, mdiff, mdisc};
 use crate::error::MirtCatError;
 use crate::theta::{InfoMatrix, ThetaVector};
 
@@ -81,6 +81,18 @@ impl Dichotomous {
     pub fn u(&self) -> f64 {
         self.u
     }
+
+    /// Daya beda multidimensional `MDISC = ||a||` (Reckase, 2009) —
+    /// padanan `mirt::MDISC()`. Tidak bergantung pada `d`, `g`, `u`.
+    pub fn mdisc(&self) -> f64 {
+        mdisc(&self.a)
+    }
+
+    /// Kesulitan multidimensional `MDIFF = -d / MDISC` — padanan
+    /// `mirt::MDIFF()`. `0.0` bila semua slope nol.
+    pub fn mdiff(&self) -> f64 {
+        mdiff(self.d, self.mdisc())
+    }
 }
 
 impl ItemResponseModel for Dichotomous {
@@ -153,6 +165,35 @@ mod tests {
         assert!(Dichotomous::new(vec![1.0], 0.0, 0.5, 0.5).is_err()); // u <= g
         assert!(Dichotomous::new(vec![1.0], 0.0, -0.1, 1.0).is_err()); // g < 0
         assert!(Dichotomous::new(vec![], 0.0, 0.0, 1.0).is_err()); // a kosong
+    }
+
+    #[test]
+    fn mdisc_and_mdiff_follow_reckase_definition() {
+        let item = Dichotomous::m2pl(vec![3.0, 4.0], 2.0).unwrap();
+        assert_relative_eq!(item.mdisc(), 5.0);
+        assert_relative_eq!(item.mdiff(), -0.4);
+    }
+
+    #[test]
+    fn mdisc_and_mdiff_ignore_guessing_and_upper_asymptote() {
+        let m2pl = Dichotomous::m2pl(vec![1.0, 1.0], 0.5).unwrap();
+        let m4pl = Dichotomous::m4pl(vec![1.0, 1.0], 0.5, 0.2, 0.9).unwrap();
+        assert_relative_eq!(m4pl.mdisc(), m2pl.mdisc());
+        assert_relative_eq!(m4pl.mdiff(), m2pl.mdiff());
+    }
+
+    #[test]
+    fn mdiff_is_positive_zero_when_intercept_is_zero() {
+        let item = Dichotomous::m2pl(vec![1.0, 1.0], 0.0).unwrap();
+        assert_eq!(item.mdiff(), 0.0);
+        assert!(item.mdiff().is_sign_positive());
+    }
+
+    #[test]
+    fn mdiff_is_zero_when_all_slopes_are_zero() {
+        let item = Dichotomous::m2pl(vec![0.0, 0.0], 1.5).unwrap();
+        assert_eq!(item.mdisc(), 0.0);
+        assert_eq!(item.mdiff(), 0.0);
     }
 
     #[test]

@@ -13,6 +13,11 @@ sebelum rilis pertama.
 
 ### Added
 
+- `Dichotomous::{mdisc, mdiff}` dan `GradedResponse::{mdisc, mdiff}`
+  (`MDISC = ||a||`, `MDIFF = -d / MDISC`), parity `1e-6` terhadap
+  `mirt::MDISC()`/`mirt::MDIFF()` lewat fixture
+  `irt_probability_information.json`. `MDIFF` bernilai `0` bila semua
+  slope nol.
 - **Fase 0 — Fondasi IRT**: trait `ItemResponseModel`, model item
   `Dichotomous` (M2PL/M3PL/M4PL) & `GradedResponse`, tipe `ThetaVector`/
   `SEVector`/`InfoMatrix`, `ItemBank`/`GroupParams`.

@@ -21,6 +21,24 @@ pub(crate) fn linear_predictor(a: &[f64], d: f64, theta: &[f64]) -> f64 {
     d + a.iter().zip(theta).map(|(aj, tj)| aj * tj).sum::<f64>()
 }
 
+/// `MDISC = ||a||` (norma Euclidean slope) — padanan `mirt::MDISC()`.
+pub(crate) fn mdisc(a: &[f64]) -> f64 {
+    a.iter().map(|aj| aj * aj).sum::<f64>().sqrt()
+}
+
+/// `MDIFF = -d / MDISC` — padanan satu elemen `mirt::MDIFF()`. Bernilai
+/// `0.0` bila `mdisc == 0` (tidak ada slope yang membedakan, jadi tidak
+/// ada arah kesulitan), bukan `NaN`/`Inf` dari pembagian dengan nol. Hasil
+/// nol selalu `+0.0` (bukan `-0.0` dari `-d` saat `d = 0`) supaya tidak
+/// tampil sebagai "-0.00" di UI.
+pub(crate) fn mdiff(d: f64, mdisc: f64) -> f64 {
+    if mdisc == 0.0 {
+        0.0
+    } else {
+        -d / mdisc + 0.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

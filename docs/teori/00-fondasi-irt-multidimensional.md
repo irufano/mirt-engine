@@ -47,11 +47,19 @@ Bentuk ini mengikuti Reckase (2009, bab 4) dan setara secara fungsional
 dengan `P_dich()` di `mirt/src/traceLinePts.cpp` (dibaca sebagai rujukan
 *perilaku* yang harus disamai — bukan disalin, lih. `PLAN.md` §1.3).
 
-`mirt-engine` juga mendefinisikan **arah kesulitan multidimensional**
-secara implisit lewat kombinasi `a`/`d` (setara konsep `MDIFF`/`MDISC` di
-`mirt`): `MDISC = ||a||` (norma Euclidean vektor slope) menyatakan daya beda
-gabungan lintas dimensi, dan `MDIFF = -d / MDISC` menyatakan kesulitan pada
-arah slope tersebut (Reckase, 1985; 2009).
+`mirt-engine` juga menyediakan **arah kesulitan multidimensional** lewat
+`mdisc()` dan `mdiff()` (setara `MDISC`/`MDIFF` di `mirt`): `MDISC = ||a||`
+(norma Euclidean vektor slope) menyatakan daya beda gabungan lintas
+dimensi, dan `MDIFF = -d / MDISC` menyatakan kesulitan pada arah slope
+tersebut (Reckase, 1985; 2009).
+
+- `Dichotomous::mdisc()` / `mdiff()` mengembalikan satu nilai. `g` dan `u`
+  tidak ikut dihitung, sama seperti di `mirt`.
+- `GradedResponse::mdisc()` mengembalikan satu nilai, sedangkan `mdiff()`
+  mengembalikan satu nilai per boundary (`-d_k / MDISC`, searah `d`).
+- Bila semua slope nol, `MDISC = 0` dan `MDIFF = 0` (bukan `NaN`/`Inf`):
+  tanpa slope tidak ada arah kesulitan. Ini sama dengan perilaku
+  `mdiff()` di frontend, yang memakai nilai engine sebagai rujukan.
 
 ## 3. Graded response model (GRM) multidimensional
 

@@ -5,7 +5,7 @@
 use nalgebra::DMatrix;
 
 use super::model::ItemResponseModel;
-use super::probability::{linear_predictor, logistic};
+use super::probability::{linear_predictor, logistic, mdiff, mdisc};
 use crate::error::MirtCatError;
 use crate::theta::{InfoMatrix, ThetaVector};
 
@@ -56,6 +56,20 @@ impl GradedResponse {
     /// Boundary kategori (terurut menurun).
     pub fn d(&self) -> &[f64] {
         &self.d
+    }
+
+    /// Daya beda multidimensional `MDISC = ||a||` — padanan
+    /// `mirt::MDISC()`. Satu nilai untuk seluruh boundary item.
+    pub fn mdisc(&self) -> f64 {
+        mdisc(&self.a)
+    }
+
+    /// Kesulitan multidimensional per boundary `MDIFF_k = -d_k / MDISC`,
+    /// searah `d` (menaik karena `d` menurun) — padanan satu baris
+    /// `mirt::MDIFF()`. Semua `0.0` bila semua slope nol.
+    pub fn mdiff(&self) -> Vec<f64> {
+        let overall = self.mdisc();
+        self.d.iter().map(|&dk| mdiff(dk, overall)).collect()
     }
 
     /// Kurva batas kategori `Pstar_k = P(respons >= kategori k+1 | theta)`
@@ -163,6 +177,25 @@ mod tests {
     fn empty_a_or_d_rejected() {
         assert!(GradedResponse::new(vec![], vec![0.0]).is_err());
         assert!(GradedResponse::new(vec![1.0], vec![]).is_err());
+    }
+
+    #[test]
+    fn mdisc_and_mdiff_per_boundary() {
+        let item = GradedResponse::new(vec![3.0, 4.0], vec![2.0, 0.0, -1.0]).unwrap();
+        assert_relative_eq!(item.mdisc(), 5.0);
+        let mdiff = item.mdiff();
+        assert_eq!(mdiff.len(), 3);
+        assert_relative_eq!(mdiff[0], -0.4);
+        assert_relative_eq!(mdiff[1], 0.0);
+        assert!(mdiff[1].is_sign_positive());
+        assert_relative_eq!(mdiff[2], 0.2);
+    }
+
+    #[test]
+    fn mdiff_is_zero_for_every_boundary_when_all_slopes_are_zero() {
+        let item = GradedResponse::new(vec![0.0, 0.0], vec![1.0, -1.0]).unwrap();
+        assert_eq!(item.mdisc(), 0.0);
+        assert_eq!(item.mdiff(), vec![0.0, 0.0]);
     }
 
     #[test]

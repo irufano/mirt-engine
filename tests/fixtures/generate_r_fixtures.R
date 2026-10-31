@@ -4,7 +4,8 @@
 # 3D M2PL) dari parameter tetap (BUKAN hasil kalibrasi/EM) memakai
 # `mirtCAT::generate.mirt_object()`, lalu mengekstrak probabilitas kategori
 # (`mirt::probtrace()`) dan matriks informasi Fisher penuh
-# (`mirt::iteminfo(..., multidim_matrix = TRUE)`) pada beberapa titik theta
+# (`mirt::iteminfo(..., multidim_matrix = TRUE)`), serta `mirt::MDISC()`/
+# `mirt::MDIFF()`, pada beberapa titik theta
 # yang sama seperti `examples/00_irt_probability_and_information.rs`.
 #
 # Catatan implementasi: `generate.mirt_object()` membangun objek `mirt`
@@ -35,7 +36,11 @@ eval_item <- function(obj, item_index, Theta) {
   P <- probtrace(it, Theta)
   info_list <- iteminfo(it, Theta, multidim_matrix = TRUE)
   if (nrow(Theta) == 1) info_list <- list(info_list)
+  md_diff <- MDIFF(obj)[item_index, ]
   list(
+    mdisc = as.numeric(MDISC(obj)[item_index]),
+    # I(): cegah auto_unbox jsonlite memadatkan MDIFF satu elemen jadi skalar
+    mdiff = I(as.numeric(md_diff[!is.na(md_diff)])),
     probabilities = lapply(seq_len(nrow(P)), function(i) as.numeric(P[i, ])),
     information = lapply(info_list, function(m) {
       lapply(seq_len(nrow(m)), function(r) as.numeric(m[r, ]))
@@ -103,7 +108,7 @@ cases[["m2pl_3d"]] <- c(
 )
 
 out <- list(
-  source = "mirt::probtrace() + mirt::iteminfo(multidim_matrix=TRUE), via mirtCAT::generate.mirt_object() (R 4.6.1 / mirt 1.47 / mirtCAT 1.14)",
+  source = "mirt::probtrace() + mirt::iteminfo(multidim_matrix=TRUE) + mirt::MDISC() + mirt::MDIFF(), via mirtCAT::generate.mirt_object() (R 4.6.1 / mirt 1.47 / mirtCAT 1.14)",
   tolerance = 1e-6,
   cases = cases
 )
